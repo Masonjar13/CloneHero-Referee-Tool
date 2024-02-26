@@ -3,15 +3,23 @@
 ;@Ahk2Exe-SetDescription Tool for creating CloneHero tournament referee reports.
 ;@Ahk2Exe-SetProductName CloneHero Tournament Reffing Tool
 ;@Ahk2Exe-SetMainIcon %A_AhkPath%\..\ICONMX_g2.ico
-;@Ahk2Exe-SetVersion 1.0.0.0
+;@Ahk2Exe-SetVersion 1.0.1.0
 #Requires AutoHotkey v2.0
 #singleInstance off
 #warn all, off
+/*@Ahk2Exe-Keep
 #noTrayIcon
+*/
 persistent
-setWorkingDir(a_scriptDir)
+
+; file/folder setup
+files:={data:a_scriptDir "\data",ini:a_scriptDir "\data\setlists.ini",log:a_scriptDir "\data\log.txt"}
+setWorkingDir(files.data)
+if !inStr(fileExist(files.data),"D") {
+	dirCreate(files.data)
+}
 try
-	fileInstall("setlists.ini", "setlists.ini")
+	fileInstall("data\setlists.ini",files.ini)
 
 ; ask for song count
 songCnt:=inputBox("Best of how many songs?","Match Song Count")
@@ -21,10 +29,22 @@ songCnt:=songCnt.value
 
 ; load setlists
 setlist:=object()
-setlist.lists:=strSplit(iniRead("setlists.ini"),"`n")
-setlist.sets:=map()
+setlist.lists:=strSplit(iniRead(files.ini),"`n")
+setlist.sets:=map(),setlist.setsTB:=map()
+
 for i in setlist.lists {
-	setlist.sets[i]:=strSplit(regExReplace(iniRead("setlists.ini",i),"(^|\n)\K\d+="),"`n")
+	set:=[],setTB:=[],j:=1
+	while j:=regExMatch(iniRead(files.ini,i),"\d+=\K([^``]+)``(\S+)",&songMatch:=unset,j) {
+		sType:=strReplace(songMatch[2],"TB",,1,&rCnt:=unset)
+		if (rCnt) {
+			setTB.push(sType " - " songMatch[1])
+		} else {
+			set.push(sType " - " songMatch[1])
+		}
+		;msgbox(songMatch[1] "`n" songMatch[2])
+	}
+	setlist.sets[i]:=set
+	setlist.setsTB[i]:=setTB
 }
 
 ; create gui
@@ -72,17 +92,21 @@ loop songCnt {
 
 ; gui events
 g.onEvent("close",a=>exitApp())
-g.c.outputButton.onEvent("click",output.bind(g))
+g.c.outputButton.onEvent("click",output.bind(g,files))
 g.c.highSeedEdit.onEvent("loseFocus",playerUpdate.bind(g,"high"))
 g.c.lowSeedEdit.onEvent("loseFocus",playerUpdate.bind(g,"low"))
 g.c.setlistDDL.onEvent("change",songsUpdate.bind(g,setlist))
 
 ; event functions
-output(g,ctrl,_) {
+output(g,files,ctrl,_) {
 	high:=g.c.highSeedEdit.value
 	low:=g.c.lowSeedEdit.value
 	highWins:=lowWins:=0
 	group:=g.c.groupEdit.value
+	
+	if !(high || low) {
+		return
+	}
 	
 	out1:=""
 	
@@ -100,19 +124,25 @@ output(g,ctrl,_) {
 	}
 	out:="Group " group "`n`n"
 		. high " " highWins "-" lowWins " " low "`n`n"
-		. high " bans " g.c.highSeedBanDDL.text "`n"
-		. low " bans " g.c.lowSeedBanDDL.text "`n`n"
-		. out1 "`n"
+		. high " bans " regExReplace(g.c.highSeedBanDDL.text,"(Solo - )|(Strum - )") "`n"
+		. low " bans " regExReplace(g.c.lowSeedBanDDL.text,"(Solo - )|(Strum - )") "`n`n"
+		. regExReplace(out1,"(Solo - )|(Strum - )") "`n"
 		. (highWins > lowWins ? high : low) " wins!"
-	a_clipboard:=out
-	tool("Output saved to clipboard")
+	
+	; called from quit or button?
+	if (_="exit") {
+		mLog(out,files.log)
+	} else {
+		a_clipboard:=out
+		tool("Output saved to clipboard")
+	}
 }
 
 playerUpdate(g,seed,ctrl,_) {
 	if (seed="high") {
 		g.c.highSeedBanText.text:=ctrl.value " bans"
 		g.c.games[1].text.text:=ctrl.value " picks "
-	} else if seed="low" {
+	} else if (seed="low") {
 		g.c.lowSeedBanText.text:=ctrl.value " bans"
 	}
 	for i in g.c.games {
@@ -123,6 +153,7 @@ playerUpdate(g,seed,ctrl,_) {
 
 songsUpdate(g,setlist,ctrl,_) {
 	set:=setlist.sets[setlist.lists[g.c.setlistDDL.value]]
+	setTB:=setlist.setsTB[setlist.lists[g.c.setlistDDL.value]]
 	g.c.highSeedBanDDL.delete()
 	g.c.highSeedBanDDL.add(set)
 	g.c.lowSeedBanDDL.delete()
@@ -130,7 +161,11 @@ songsUpdate(g,setlist,ctrl,_) {
 	
 	for i in g.c.games {
 		i.DDLS.delete()
-		i.DDLS.add(set)
+		if (a_index=g.c.games.length) {
+			i.DDLS.add(setTB)
+		} else {
+			i.DDLS.add(set)
+		}
 	}
 }
 
@@ -154,8 +189,18 @@ nextPick(g,songCnt,ctrl,_) {
 	}
 }
 
+; other functions
+mLog(text,logFile) {
+	fileAppend(a_nowUTC " | " timeStamp(a_nowUTC).timedate  " | " timeStamp().timedate "`n" text "`n`n",logFile)
+}
+
+; exit routine
+quit(g,files,reason,code) {
+	output(g,files,0,"exit")
+}
+
 ; std lib
-tool(str:="",wait:=2500,x:=unset,y:=unset){
+tool(str:="",wait:=2500,x:=unset,y:=unset) {
 	if (!str) {
 		tooltip()
 	} else {
@@ -165,7 +210,37 @@ tool(str:="",wait:=2500,x:=unset,y:=unset){
 	return str
 }
 
+class timeStamp {
+	__new(stamp:="") {
+		if(!stamp)
+			this.stamp:=stamp:=a_now
+		else
+			this.stamp:=stamp
+		this.year:=subStr(stamp,1,4)
+		this.month:=subStr(stamp,5,2)
+		this.day:=subStr(stamp,7,2)
+		this.hour:=subStr(stamp,9,2)
+		this.hourap:=this.hour>12?this.hour-12:this.hour+0
+		this.ap:=this.hour>12?"pm":"am"
+		this.minute:=subStr(stamp,11,2)
+		this.second:=subStr(stamp,13,2)
+		
+		; pre-formatted
+		this.date:=(td:=this.month "/" this.day) "/" this.year ; imperial
+		;this.date:=(td:=ts.day "/" ts.month) "/" ts.year ; metric
+		this.date2:=td "/" subStr(this.year,3)
+		this.time:=this.hour ":" this.minute
+		this.timeap:=this.hourap ":" this.minute " " this.ap
+		this.timedate:=this.date " " this.time
+		this.timedateap:=this.date " " this.timeap
+		this.timedate2:=this.date2 " " this.time
+		this.timedateap2:=this.date2 " " this.timeap
+	}
+}
+
+; log on exit
+onExit(quit.bind(g,files))
+
 ; show gui
 g.show()
 return
-
