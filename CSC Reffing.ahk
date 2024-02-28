@@ -10,13 +10,23 @@
 /*@Ahk2Exe-Keep
 #noTrayIcon
 */
+#include <Gdip_All>
+#include <timestamp>
+#include <tool>
+
 persistent
 
 ; file/folder setup
-files:={data:a_scriptDir "\data",ini:a_scriptDir "\data\setlists.ini",log:a_scriptDir "\data\log.txt"}
+files:={data:a_scriptDir "\data"
+		,ini:a_scriptDir "\data\setlists.ini"
+		,log:a_scriptDir "\data\log.txt"
+		,matches:a_scriptDir "\matches"}
 setWorkingDir(files.data)
 if !inStr(fileExist(files.data),"D") {
 	dirCreate(files.data)
+}
+if !inStr(fileExist(files.matches),"D") {
+	dirCreate(files.matches)
 }
 try
 	fileInstall("data\setlists.ini",files.ini)
@@ -70,7 +80,10 @@ g.c.highSeedBanText:=g.add("text","xm ys+80 section w250 right","bans") ; insert
 g.setFont("s12")
 g.c.highSeedBanDDL:=g.add("dropDownList","ys w250") ; song list
 g.setFont("s15")
-g.c.lowSeedBanText:=g.add("text","xm section w250 right","bans") ; insert Low Seed Player name
+; screenshot
+g.c.screenshotButton:=g.add("button","ys w200 h50","Screenshot")
+
+g.c.lowSeedBanText:=g.add("text","xm ys+38 section w250 right","bans") ; insert Low Seed Player name
 g.setFont("s12")
 g.c.lowSeedBanDDL:=g.add("dropDownList","ys w250") ; song list
 g.setFont("s15")
@@ -96,6 +109,7 @@ g.c.outputButton.onEvent("click",output.bind(g,files))
 g.c.highSeedEdit.onEvent("loseFocus",playerUpdate.bind(g,"high"))
 g.c.lowSeedEdit.onEvent("loseFocus",playerUpdate.bind(g,"low"))
 g.c.setlistDDL.onEvent("change",songsUpdate.bind(g,setlist))
+g.c.screenshotButton.onEvent("click",getScreenshot.bind(g,files))
 
 ; event functions
 output(g,files,ctrl,_) {
@@ -124,9 +138,9 @@ output(g,files,ctrl,_) {
 	}
 	out:="Group " group "`n`n"
 		. high " " highWins "-" lowWins " " low "`n`n"
-		. high " bans " regExReplace(g.c.highSeedBanDDL.text,"(Solo - )|(Strum - )") "`n"
-		. low " bans " regExReplace(g.c.lowSeedBanDDL.text,"(Solo - )|(Strum - )") "`n`n"
-		. regExReplace(out1,"(Solo - )|(Strum - )") "`n"
+		. high " bans " regExReplace(g.c.highSeedBanDDL.text,"(Solo - )|(Strum - )|(Hybrid - )") "`n"
+		. low " bans " regExReplace(g.c.lowSeedBanDDL.text,"(Solo - )|(Strum - )|(Hybrid - )") "`n`n"
+		. regExReplace(out1,"(Solo - )|(Strum - )|(Hybrid - )") "`n"
 		. (highWins > lowWins ? high : low) " wins!"
 	
 	; called from quit or button?
@@ -135,6 +149,17 @@ output(g,files,ctrl,_) {
 	} else {
 		a_clipboard:=out
 		tool("Output saved to clipboard")
+	}
+}
+
+getScreenshot(g,files,ctrl,_) {
+	static ts:=regExReplace(timeStamp().timedates,"\/|:",".")
+	if !(g.c.highSeedEdit.value || g.c.highSeedEdit.value) {
+		msgbox("Please enter both player names before taking a screenshot.","Screenshot")
+	} else {
+		dirCreate(scPath:=files.matches "\" g.c.highSeedEdit.value " vs " g.c.lowSeedEdit.value " - " ts)
+		screenshot(scPath)
+		winActivate("ahk_id" g.hwnd)
 	}
 }
 
@@ -194,48 +219,25 @@ mLog(text,logFile) {
 	fileAppend(a_nowUTC " | " timeStamp(a_nowUTC).timedate  " | " timeStamp().timedate "`n" text "`n`n",logFile)
 }
 
+screenshot(filePath) {
+	static pt:=gdip_startup()
+	static ch:="Clone Hero ahk_class UnityWndClass ahk_exe Clone Hero.exe"
+	static cnt:=0
+
+	if !winExist(ch) {
+		msgbox("CloneHero window was not found!","CloneHero Not Running")
+		return
+	}
+	winActivate(ch)
+	winGetClientPos(&x:=unset,&y:=unset,&w:=unset,&h:=unset,ch)
+	sc:=gdip_bitmapFromScreen(x "|" y "|" w "|" h)
+	gdip_saveBitmapToFile(sc,filePath "\" (++cnt) ".png")
+	gdip_disposeImage(sc)
+}
+
 ; exit routine
 quit(g,files,reason,code) {
 	output(g,files,0,"exit")
-}
-
-; std lib
-tool(str:="",wait:=2500,x:=unset,y:=unset) {
-	if (!str) {
-		tooltip()
-	} else {
-		tooltip(str,x?,y?)
-		setTimer(tool,-wait)
-	}
-	return str
-}
-
-class timeStamp {
-	__new(stamp:="") {
-		if(!stamp)
-			this.stamp:=stamp:=a_now
-		else
-			this.stamp:=stamp
-		this.year:=subStr(stamp,1,4)
-		this.month:=subStr(stamp,5,2)
-		this.day:=subStr(stamp,7,2)
-		this.hour:=subStr(stamp,9,2)
-		this.hourap:=this.hour>12?this.hour-12:this.hour+0
-		this.ap:=this.hour>12?"pm":"am"
-		this.minute:=subStr(stamp,11,2)
-		this.second:=subStr(stamp,13,2)
-		
-		; pre-formatted
-		this.date:=(td:=this.month "/" this.day) "/" this.year ; imperial
-		;this.date:=(td:=ts.day "/" ts.month) "/" ts.year ; metric
-		this.date2:=td "/" subStr(this.year,3)
-		this.time:=this.hour ":" this.minute
-		this.timeap:=this.hourap ":" this.minute " " this.ap
-		this.timedate:=this.date " " this.time
-		this.timedateap:=this.date " " this.timeap
-		this.timedate2:=this.date2 " " this.time
-		this.timedateap2:=this.date2 " " this.timeap
-	}
 }
 
 ; log on exit
