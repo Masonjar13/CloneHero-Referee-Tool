@@ -1,7 +1,7 @@
 # CloneHero Referee Tool
  Simple app to keep track and build a text report when reffing in CloneHero tournaments.
 
-Referees typically need to type everything out to keep track of the current match. Instead, this tool only requires that you type out the group letter and names of the players. Everything else is handled via drop-downs.
+Referees typically need to type everything out to keep track of the current match. Instead, this tool only requires that you type out the group letter and names of the players. Everything else is handled via drop-downs. There is also a button to save a screenshot to a designated match folder.
 
 Setlists are stored in the included INI file, which can easily be edited to include new setlists following the format of the existing setlists. The INI file is included in the release, no need to download it separately. After running once, you will be able to see and edit the INI file.
 
