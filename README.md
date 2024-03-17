@@ -7,7 +7,7 @@ Setlists are stored in the included INI file, which can easily be edited to incl
 
 This is a universal tool, but follows CSC format standards.
 
-![CH Ref Tool](https://i.imgur.com/N5WIoyo.png)
+![CH Ref Tool](https://i.imgur.com/tgU9Uc7.png)
 
 # Limitations
 Due to the very simple UI choice, on a 1080 monitor with no DPI scaling, a maximum of 20 songs can be added before running off the screen. Most tournaments are best of 7 or 9, so this isn't a real issue.
