@@ -1,7 +1,7 @@
 ﻿class CHRefTool {
 	__new(files,songCnt) {
 		this.files:=files,this.songCnt:=songCnt
-
+		this.highSeed:=this.lowSeed:=this.highSeedNum:=this.lowSeedNum:=""
 		this.loadData()
 		this.makeGui()
 	}
@@ -20,7 +20,7 @@
 
 		; check/write ini
 		if !fileExist(files.ini) {
-			fileAppend(b64dText("DQpbQ1NDIE9wZW4gNF0NCjAxPVRpbHRgU29sbw0KMDI9VGhlIFNlY29uZCBMb3VkZXN0IEd1aXRhciBJbiBUaGUgV29ybGRgU29sbw0KMDM9TWlkbmlnaHRgU29sbw0KMDQ9TGlmZSBDb250cm9sbGVyYFN0cnVtDQowNT1TYXR1cm5pbmVgU3RydW0NCjA2PU5pdHJ1c2BTdHJ1bQ0KMDc9VHJ1c3RgSHlicmlkDQowOD1EZWF0aCBQZXJjZXB0aW9uYEh5YnJpZA0KMDk9TCdFbnRpdGVgSHlicmlkDQoxMD1Hcm91bmRob2cgKEJlYXQgSnVnZ2xlKWBIeWJyaWQNCjExPUZvcmdvdHRlbiBUcmFpbGBTb2xvVEINCjEyPUNoYXJnaW5nIFRoZSBWb2lkYFN0cnVtVEINCjEzPVNlZSBUaGUgTGlnaHQgb2YgRnJlZWRvbWBIeWJyaWRUQg0KW0NTQyA0IEFtYXRldXJdDQpbQ1NDIDQgUGxheW9mZnNd")
+			fileAppend(b64dText("DQpbQ1NDIE9wZW4gNF0NCjAxPVRpbHRgU29sbw0KMDI9VGhlIFNlY29uZCBMb3VkZXN0IEd1aXRhciBJbiBUaGUgV29ybGRgU29sbw0KMDM9TWlkbmlnaHRgU29sbw0KMDQ9TGlmZSBDb250cm9sbGVyYFN0cnVtDQowNT1TYXR1cm5pbmVgU3RydW0NCjA2PU5pdHJ1c2BTdHJ1bQ0KMDc9VHJ1c3RgSHlicmlkDQowOD1EZWF0aCBQZXJjZXB0aW9uYEh5YnJpZA0KMDk9TCdFbnRpdGVgSHlicmlkDQoxMD1Hcm91bmRob2cgKEJlYXQgSnVnZ2xlKWBIeWJyaWQNCjExPUZvcmdvdHRlbiBUcmFpbGBTb2xvVEINCjEyPUNoYXJnaW5nIFRoZSBWb2lkYFN0cnVtVEINCjEzPVNlZSBUaGUgTGlnaHQgb2YgRnJlZWRvbWBIeWJyaWRUQg0KW0NTQyA0IEFtYXRldXJdDQowMT1XaWdnbGVjb3JlYFNvbG8NCjAyPUUuQi5FYFNvbG8NCjAzPUZlbGlzICgxMTAlKWBTb2xvDQowND0oQm9zcykgQm9keSBBbmQgU291bGBTb2xvQm9zcw0KMDU9U29saWxvcXV5YFN0cnVtDQowNj1IYXZhIE5hZ2lsYWBTdHJ1bQ0KMDc9WmhvcnlrYFN0cnVtDQowOD0oQm9zcykgQW5kIFRoZSBNb29uIFR1cm5lZCBCbGFjayAoMTEwJSlgU3RydW1Cb3NzDQowOT1Qb2lzb24gV2FzIFRoZSBDdXJlIFtDU0M6Q1MgRWRpdF1gSHlicmlkDQoxMD1BbmRyb21lZGEgKDExNSUpYEh5YnJpZA0KMTE9TmV2ZXJtb3JlYEh5YnJpZA0KMTI9VGltZSBUcmF2ZWxlciAoMTE1JSlgSHlicmlkDQoxMz0oQm9zcykgVGhlIFVuc2VlbiBPbmVzYEh5YnJpZEJvc3MNCjE0PU1vb25saWdodCBTb25hdGEsIDNyZCBNb3ZlbWVudGBTb2xvVEINCjE1PURlc3Ryb3llcmBTdHJ1bVRCDQoxNj1HbG9yeSBUbyBUaGUgV29ybGRgSHlicmlkVEINCltDU0MgNCBQbGF5b2Zmc10NCjAxPUZpbmdlcm9pZCAoMTEwJSlgU29sbw0KMDI9VHJhY2sgb24gRmlyZWBTb2xvDQowMz1DaGVhdGluZyB0aGUgTkFTQSBTcGFjZSBQaHlzaWNhbCAoMTEwJSlgU29sbw0KMDQ9KEJvc3MpIFByZXZhaWwgKEphcnZpczk5OTkgQ292ZXIpYFNvbG9Cb3NzDQowNT0yNSBNZXRhbCBSaWZmcyBQbGF5ZWQgYXQgMjMwIEJQTWBTdHJ1bQ0KMDY9WWUgRW50cmFuY2VtcGVyaXVtYFN0cnVtDQowNz1UaGUgQ3J5cHRvZ3JhcGhlcmBTdHJ1bQ0KMDg9KEJvc3MpIFNjb3VyZ2Ugb2YgdGhlIE9mZnNwcmluZyAoMTI1JSlgU3RydW1Cb3NzDQowOT1MZWdlbmQgKDEyNSUpYEh5YnJpZA0KMTA9VHVya2V5IFR1cmtleWBIeWJyaWQNCjExPUVuZGFya2VubWVudCAoQW5hYWwgTmF0aHJha2ggQ292ZXIpYEh5YnJpZA0KMTI9T3JiIFtDU0MgRWRpdF0gKDEyNSUpYEh5YnJpZA0KMTM9KEJvc3MpIEZsYXNoYmFja2xvZ2BIeWJyaWRCb3NzDQoxND1VbmZsZXNoIFNvbG8gTWVkbHlgU29sb1RCDQoxNT1TYWxpZ2lhYFN0cnVtVEINCjE2PVBhcmFsbGVsIFVuaXZlcnNlIFNoaWZ0ZXJgSHlicmlkVEINCg==")
 				,files.ini)
 		}
 
@@ -36,7 +36,14 @@
 				if (rCnt) {
 					setTB.push(sType " - " songMatch[1])
 				} else {
-					set.push(sType " - " songMatch[1])
+					sType:=strReplace(songMatch[2],"Boss",,1,&rCnt:=unset)
+					if (rCnt) {
+						if (this.songCnt=9) {
+							set.push(sType " - " songMatch[1])
+						}
+					} else {
+						set.push(sType " - " songMatch[1])
+					}
 				}
 			}
 			setlist.sets[i]:=set
@@ -108,8 +115,8 @@
 	output(ctrl,_) {
 		g:=this.g
 		
-		high:=g.c.highSeedEdit.value
-		low:=g.c.lowSeedEdit.value
+		high:=this.highSeed
+		low:=this.lowSeed
 		highWins:=lowWins:=0
 		group:=g.c.groupEdit.value
 		
@@ -132,7 +139,7 @@
 			out1.="G" a_index ": " i.text.text i.DDLS.text " - " i.DDL.text " wins!`n"
 		}
 		out:="Group " group "`n`n"
-			. high " " highWins "-" lowWins " " low "`n`n"
+			. (this.highSeedNum?this.highSeedNum " ":"") high " " highWins "-" lowWins " " low (this.lowSeedNum?" " this.lowSeedNum:"") "`n`n"
 			. high " bans " regExReplace(g.c.highSeedBanDDL.text,"(Solo - )|(Strum - )|(Hybrid - )") "`n"
 			. low " bans " regExReplace(g.c.lowSeedBanDDL.text,"(Solo - )|(Strum - )|(Hybrid - )") "`n`n"
 			. regExReplace(out1,"(Solo - )|(Strum - )|(Hybrid - )") "`n"
@@ -162,16 +169,47 @@
 
 	playerUpdate(seed,ctrl,_) {
 		g:=this.g
-
+		pName:=ctrl.value
+		
+		; check for seed number
+		regExMatch(pName,"\(\d+\)",&seedNum:=unset)
+		
 		if (seed="high") {
-			g.c.highSeedBanText.text:=ctrl.value " bans"
-			g.c.games[1].text.text:=ctrl.value " picks "
+			if (isObject(seedNum)) {
+				this.highSeedNum:=seedNum[]
+				pName:=trim(strReplace(pName,seedNum[]))
+			} else {
+				this.highSeedNum:=""
+			}
+			g.c.highSeedBanText.text:=pName " bans"
+			g.c.games[1].text.text:=pName " picks "
+			this.highSeed:=pName
 		} else if (seed="low") {
-			g.c.lowSeedBanText.text:=ctrl.value " bans"
+			if (isObject(seedNum)) {
+				this.lowSeedNum:=seedNum[]
+				pName:=trim(strReplace(pName,seedNum[]))
+			} else {
+				this.lowSeedNum:=""
+			}
+			g.c.lowSeedBanText.text:=pName " bans"
+			this.lowSeed:=pName
 		}
+
 		for i in g.c.games {
 			i.DDL.delete()
-			i.DDL.add([g.c.highSeedEdit.value,g.c.lowSeedEdit.value])
+			a:=[]
+			if (this.highSeed) {
+				a.push(this.highSeed)
+			}
+			if (this.lowSeed) {
+				a.push(this.lowSeed)
+			}
+			i.DDL.add(a)
+			
+			; blank out names for picks
+			if (a_index<this.songCnt-1) {
+				g.c.games[a_index+1].text.text:=" picks "
+			}
 		}
 	}
 
@@ -198,12 +236,13 @@
 	nextPick(ctrl,_) {
 		g:=this.g,songCnt:=this.songCnt
 		
-		high:=g.c.highSeedEdit.value
-		low:=g.c.lowSeedEdit.value
+		high:=this.highSeed
+		low:=this.lowSeed
 		
 		for i in g.c.games {
 			if (a_index = songCnt-1)
 				break
+
 			if (i.DDL.text=high) {
 				try
 					g.c.games[a_index+1].text.text:=low " picks "
