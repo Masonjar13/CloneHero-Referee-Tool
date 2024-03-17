@@ -3,7 +3,7 @@
 ;@Ahk2Exe-SetDescription Tool for creating CloneHero tournament referee reports.
 ;@Ahk2Exe-SetProductName CloneHero Tournament Reffing Tool
 ;@Ahk2Exe-SetMainIcon %A_AhkPath%\..\ICONMX_g2.ico
-;@Ahk2Exe-SetVersion 1.2.0.0
+;@Ahk2Exe-SetVersion 1.1.0.0
 #Requires AutoHotkey v2.0
 #singleInstance off
 #warn all, off
