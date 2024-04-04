@@ -132,18 +132,18 @@
 				highWins++
 			} else if (i.DDL.text=low) {
 				lowWins++
-			} else {
-				continue
+			} else if !(i.DDLS.text) { ; no winner, no song pick
+				break
 			}
 			
-			out1.="G" a_index ": " i.text.text i.DDLS.text " - " i.DDL.text " wins!`n"
+			out1.="G" a_index ": " i.text.text i.DDLS.text (i.DDL.text ? " - " i.DDL.text " wins!`n" : "")
 		}
-		out:="Group " group "`n`n"
+		out:=(group?"Group " group "`n`n":"")
 			. (this.highSeedNum?this.highSeedNum " ":"") high " " highWins "-" lowWins " " low (this.lowSeedNum?" " this.lowSeedNum:"") "`n`n"
 			. high " bans " regExReplace(g.c.highSeedBanDDL.text,"(Solo - )|(Strum - )|(Hybrid - )") "`n"
 			. low " bans " regExReplace(g.c.lowSeedBanDDL.text,"(Solo - )|(Strum - )|(Hybrid - )") "`n`n"
 			. regExReplace(out1,"(Solo - )|(Strum - )|(Hybrid - )") "`n"
-			. (highWins > lowWins ? high : low) " wins!"
+			. (highWins > this.songCnt//2 ? high " wins!": (lowWins > this.songCnt//2 ? low " wins!": ""))
 		
 		; called from quit or button?
 		if (_="exit") {
