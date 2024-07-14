@@ -143,7 +143,7 @@
 			. high " bans " regExReplace(g.c.highSeedBanDDL.text,"(Solo - )|(Strum - )|(Hybrid - )") "`n"
 			. low " bans " regExReplace(g.c.lowSeedBanDDL.text,"(Solo - )|(Strum - )|(Hybrid - )") "`n`n"
 			. regExReplace(out1,"(Solo - )|(Strum - )|(Hybrid - )") "`n"
-			. (highWins > this.songCnt//2 ? high " wins!": (lowWins > this.songCnt//2 ? low " wins!": ""))
+			. (highWins > this.songCnt//2 ? high " wins!": (lowWins > this.songCnt//2 ? low " wins!": (highWins = this.songCnt//2 && highWins=lowWins ? "Drawn Match" : "")))
 		
 		; called from quit or button?
 		if (_="exit") {
@@ -175,6 +175,9 @@
 		regExMatch(pName,"\(\d+\)",&seedNum:=unset)
 		
 		if (seed="high") {
+			if this.highSeed = pName { ; didn't change
+				return
+			}
 			if (isObject(seedNum)) {
 				this.highSeedNum:=seedNum[]
 				pName:=trim(strReplace(pName,seedNum[]))
@@ -185,6 +188,9 @@
 			g.c.games[1].text.text:=pName " picks "
 			this.highSeed:=pName
 		} else if (seed="low") {
+			if this.lowSeed = pName { ; didn't change
+				return
+			}
 			if (isObject(seedNum)) {
 				this.lowSeedNum:=seedNum[]
 				pName:=trim(strReplace(pName,seedNum[]))
@@ -218,6 +224,7 @@
 		
 		set:=setlist.sets[setlist.lists[g.c.setlistDDL.value]]
 		setTB:=setlist.setsTB[setlist.lists[g.c.setlistDDL.value]]
+
 		g.c.highSeedBanDDL.delete()
 		g.c.highSeedBanDDL.add(set)
 		g.c.lowSeedBanDDL.delete()
@@ -226,7 +233,17 @@
 		for i in g.c.games {
 			i.DDLS.delete()
 			if (a_index=g.c.games.length) {
-				i.DDLS.add(setTB)
+				if !setTB.length { ; no TBs
+					if g.c.games[g.c.games.length].text.text != "picks " {
+						g.c.games[g.c.games.length].text.text := "picks "
+					}
+					i.DDLs.add(set)
+				} else {
+					if g.c.games[g.c.games.length].text.text != "TIEBREAKER - " {
+						g.c.games[g.c.games.length].text.text := "TIEBREAKER - "
+					}
+					i.DDLS.add(setTB)
+				}
 			} else {
 				i.DDLS.add(set)
 			}
@@ -240,7 +257,7 @@
 		low:=this.lowSeed
 		
 		for i in g.c.games {
-			if (a_index = songCnt-1)
+			if (a_index = songCnt-1 && this.setlist.setsTB[this.setlist.lists[this.g.c.setlistDDL.value]].length)
 				break
 
 			if (i.DDL.text=high) {
