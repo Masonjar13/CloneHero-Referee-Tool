@@ -72,6 +72,10 @@
 		g.c.highSeedEdit:=g.add("edit","ys")
 		g.c.lowSeedText:=g.add("text","ys r1","Low Seed Player: ")
 		g.c.lowSeedEdit:=g.add("edit","ys")
+		; song hover
+		g.setFont("c505050 underline s12 w900")
+		g.c.songHover:=g.add("text","xm+200 w500","Demo Song Text")
+		g.setFont("norm cblack s15 w400")
 
 		; bans
 		g.c.highSeedBanText:=g.add("text","xm ys+80 section w250 right","bans") ; insert High Seed Player name
@@ -107,6 +111,7 @@
 		g.c.lowSeedEdit.onEvent("loseFocus",objBindMethod(this,"playerUpdate","low"))
 		g.c.setlistDDL.onEvent("change","songsUpdate")
 		g.c.screenshotButton.onEvent("click","getScreenshot")
+		setTimer(objBindMethod(this,"onHover"),10)
 
 		this.g:=g
 	}
@@ -269,6 +274,28 @@
 			} else {
 				try
 					g.c.games[a_index+1].text.text:=" picks "
+			}
+		}
+	}
+
+	onHover() {
+		if winActive("ahk_id" this.g.hwnd) {
+			mouseGetPos(,,&win:=0,&wCtrl:=0)
+			if (win = this.g.hwnd && inStr(wCtrl,"ComboBox")) {
+				bNum:=subStr(wCtrl,9)
+				
+				if (bNum = 1) { ; Setlist DDL
+					return
+				} else if (bNum > 3 && mod(bNum,2)) { ; Winner DDL
+					return
+				} else {
+					cText:=controlGetText(wCtrl,"ahk_id" this.g.hwnd)
+					if (cText!=this.g.c.songHover.text) {
+						this.g.c.songHover.text:=cText
+					}
+				}
+			} else if (this.g.c.songHover.text) {
+				this.g.c.songHover.text:=""
 			}
 		}
 	}
