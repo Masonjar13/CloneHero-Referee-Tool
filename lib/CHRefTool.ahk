@@ -35,6 +35,8 @@
 				sType:=strReplace(songMatch[2],"TB",,1,&rCnt:=unset)
 				if (rCnt) {
 					setTB.push(sType " - " songMatch[1])
+				} else if (sType ~= "N\/?A") {
+					set.push(songMatch[1])
 				} else {
 					sType:=strReplace(songMatch[2],"Boss",,1,&rCnt:=unset)
 					if (rCnt) {
