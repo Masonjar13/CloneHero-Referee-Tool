@@ -15,6 +15,7 @@ persistent
 #include <Gdip_All>
 #include <std>
 #include <CHRefTool>
+#include <reverseArray>
 
 setWorkingDir(a_scriptDir)
 
