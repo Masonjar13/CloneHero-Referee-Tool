@@ -72,3 +72,11 @@ b64dText(text,encoding:="UTF-8") {
 	dllCall("Crypt32.dll\CryptStringToBinary","Ptr",strPtr(text),"UInt",0,"UInt",0x1,"Ptr",b,"UInt*",b.size,"Ptr",0,"Ptr",0)
 	return strGet(b,encoding)
 }
+
+reverseArray(iArray) {
+	rArray:=[]
+	for i,a in iArray {
+		rArray.insertAt(1,a)
+	}
+	return rArray
+}
