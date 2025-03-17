@@ -2,6 +2,7 @@
 	__new(files,songCnt) {
 		this.files:=files,this.songCnt:=songCnt
 		this.highSeed:=this.lowSeed:=this.highSeedNum:=this.lowSeedNum:=""
+		this.deferV:=0
 		this.loadData()
 		this.makeGui()
 	}
@@ -72,6 +73,7 @@
 		g.c.outputButton:=g.add("button","ys xs+550","Save to Clipboard")
 		g.c.groupText:=g.add("text","xm section","Group: ")
 		g.c.groupEdit:=g.add("edit","ys limit1 r1 w40 uppercase")
+		g.c.defer:=g.add("checkbox","ys","Defer ban?")
 		g.c.highSeedText:=g.add("text","xm section r1","High Seed Player: ")
 		g.c.highSeedEdit:=g.add("edit","ys")
 		g.c.lowSeedText:=g.add("text","ys r1","Low Seed Player: ")
@@ -118,6 +120,7 @@
 		g.c.setlistDDL.onEvent("change","songsUpdate")
 		g.c.screenshotButton.onEvent("click","getScreenshot")
 		g.c.setlistUpdate.onEvent("click","updateIni")
+		g.c.defer.onEvent("click","defer")
 		setTimer(objBindMethod(this,"onHover"),10)
 
 		this.g:=g
@@ -127,8 +130,8 @@
 	output(ctrl,_) {
 		g:=this.g
 		
-		high:=this.highSeed
-		low:=this.lowSeed
+		high:=trim(strReplace(g.c.highSeedEdit.value,this.highSeedNum))
+		low:=trim(strReplace(g.c.lowSeedEdit.value,this.lowSeedNum))
 		highWins:=lowWins:=0
 		group:=g.c.groupEdit.value
 		
@@ -152,8 +155,9 @@
 		}
 		out:=(group?"Group " group "`n`n":"")
 			. (this.highSeedNum?this.highSeedNum " ":"") high " " highWins "-" lowWins " " low (this.lowSeedNum?" " this.lowSeedNum:"") "`n`n"
-			. high " bans " regExReplace(g.c.highSeedBanDDL.text,"(Solo - )|(Strum - )|(Hybrid - )") "`n"
-			. low " bans " regExReplace(g.c.lowSeedBanDDL.text,"(Solo - )|(Strum - )|(Hybrid - )") "`n`n"
+			. (this.deferV?high " deferred ban/pick`n`n":"")
+			. this.highSeed " bans " regExReplace(g.c.highSeedBanDDL.text,"(Solo - )|(Strum - )|(Hybrid - )") "`n"
+			. this.lowSeed " bans " regExReplace(g.c.lowSeedBanDDL.text,"(Solo - )|(Strum - )|(Hybrid - )") "`n`n"
 			. regExReplace(out1,"(Solo - )|(Strum - )|(Hybrid - )") "`n"
 			. (highWins > this.songCnt//2 ? high " wins!": (lowWins > this.songCnt//2 ? low " wins!": (highWins = this.songCnt//2 && highWins=lowWins ? "Drawn Match" : "")))
 		
@@ -182,6 +186,11 @@
 	playerUpdate(seed,ctrl,_) {
 		g:=this.g
 		pName:=ctrl.value
+		
+		; swap players if ban deferred
+		if (this.deferV) {
+			seed:=(seed="high"?"low":"high")
+		}
 		
 		; check for seed number
 		regExMatch(pName,"\(\d+\)",&seedNum:=unset)
@@ -283,6 +292,25 @@
 					g.c.games[a_index+1].text.text:=" picks "
 			}
 		}
+	}
+
+	defer(ctrl,_) {
+		this.deferV:=ctrl.value,g:=this.g
+		p1:=trim(strReplace(g.c.highSeedEdit.value,this.highSeedNum))
+		p2:=trim(strReplace(g.c.lowSeedEdit.value,this.lowSeedNum))
+		
+		if (this.deferV) { ; swap players
+			this.highSeed:=p2
+			this.lowSeed:=p1
+		} else { ; swap back to normal
+			this.highSeed:=p1
+			this.lowSeed:=p2
+		}
+
+		; swap bans & first pick
+		g.c.highSeedBanText.text:=this.highSeed " bans"
+		g.c.lowSeedBanText.text:=this.lowSeed " bans"
+		g.c.games[1].text.text:=this.highSeed " picks "
 	}
 
 	onHover() {
