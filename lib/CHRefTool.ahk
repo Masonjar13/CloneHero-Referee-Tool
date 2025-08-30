@@ -69,11 +69,13 @@
 		g.c.setlistDDL:=g.add("dropDownList","r10 ys",this.setlist.lists) ; setlist
 		g.setFont("s12","Helvetica")
 		g.c.setlistUpdate:=g.add("button","ys","Update")
+		g.c.coinFlip:=g.add("button","ys","Coin Flip")
 		g.setFont("s15","Helvetica")
 		g.c.outputButton:=g.add("button","ys xs+550","Save to Clipboard")
 		g.c.groupText:=g.add("text","xm section","Group: ")
 		g.c.groupEdit:=g.add("edit","ys limit1 r1 w40 uppercase")
 		g.c.defer:=g.add("checkbox","ys","Defer ban?")
+		g.c.coinFlipResult:=g.add("text","ys x+155 w80")
 		g.c.highSeedText:=g.add("text","xm section r1","High Seed Player: ")
 		g.c.highSeedEdit:=g.add("edit","ys")
 		g.c.lowSeedText:=g.add("text","ys r1","Low Seed Player: ")
@@ -121,6 +123,7 @@
 		g.c.screenshotButton.onEvent("click","getScreenshot")
 		g.c.setlistUpdate.onEvent("click","updateIni")
 		g.c.defer.onEvent("click","defer")
+		g.c.coinFlip.onEvent("click","coinFlip")
 		setTimer(objBindMethod(this,"onHover"),10)
 
 		this.g:=g
@@ -344,6 +347,11 @@
 			this.g.c.setlistDDL.add(this.setlist.lists)
 		}
 	}
+	
+	coinFlip(ctrl,_) {
+		this.g.c.coinFlipResult.value:=(random(0,1)?"Heads":"Tails")
+	}
+	
 	quit(reason,code) {
 		this.output(0,"exit")
 	}
