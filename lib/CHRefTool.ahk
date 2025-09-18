@@ -158,6 +158,7 @@
 		}
 		out:=(group?"Group " group "`n`n":"")
 			. (this.highSeedNum?this.highSeedNum " ":"") high " " highWins "-" lowWins " " low (this.lowSeedNum?" " this.lowSeedNum:"") "`n`n"
+			. (this.g.c.coinFlipResult.value?this.highSeed " calls _____, coin flip lands on " this.g.c.coinFlipResult.value "`n`n":"")
 			. (this.deferV?high " deferred ban/pick`n`n":"")
 			. this.highSeed " bans " regExReplace(g.c.highSeedBanDDL.text,"(Solo - )|(Strum - )|(Hybrid - )") "`n"
 			. this.lowSeed " bans " regExReplace(g.c.lowSeedBanDDL.text,"(Solo - )|(Strum - )|(Hybrid - )") "`n`n"
@@ -350,6 +351,7 @@
 	
 	coinFlip(ctrl,_) {
 		this.g.c.coinFlipResult.value:=(random(0,1)?"Heads":"Tails")
+		ctrl.enabled:=0
 	}
 	
 	quit(reason,code) {

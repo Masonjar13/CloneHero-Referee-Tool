@@ -14,6 +14,13 @@ Select the bans and picks from the drop-down lists as you go. At the score scree
 
 At any time, you can click the "Save to Clipboard" button to save all current data to your clipboard in a ready-to-post format. If you end up needing the data again, but you've closed the window, you can check the log file in the "data" folder.
 
+### Coin Flip
+Coin flip can be used to determine who will ban/pick/defer first. At this time, it may only be used **once** per match. It always assumes the higher seed will call heads or tails. It also does not swap players, so you will need to use the defer checkbox.
+
+In the output, there are underscores denoting where you should enter what was called. Also, if the coin flip swapped player positions but a defer was **not** used, be sure to **remove** the defer text from the output. Similarly, if the coin flip swapped player positions and a defer **was** used, you will need to **add** defer text to the output.
+
+\* Current implementation is temporary and will be updated at a later time.
+
 # Setlist format
 The setlists are saved in an ini file, which will be downloaded the first time you run the tool. You can find it in the data folder inside the folder the ref tool is in. You can update the file to the most current version by clicking the update button next to the setlist drop-down.
 
