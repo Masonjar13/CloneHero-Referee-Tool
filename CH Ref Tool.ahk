@@ -15,14 +15,17 @@ persistent
 #include <Gdip_All>
 #include <std>
 #include <CHRefTool>
+#include <JSON>
 
 setWorkingDir(a_scriptDir)
 
 ; file/folder setup
-files:={data:a_scriptDir "\data"
-		,ini:a_scriptDir "\data\setlists.ini"
-		,log:a_scriptDir "\data\log.txt"
-		,matches:a_scriptDir "\matches"}
+files:={data:a_scriptDir "\data",
+		ini:a_scriptDir "\data\setlists.ini",
+		log:a_scriptDir "\data\log.txt",
+		jLog:a_scriptDir "\data\jlog.txt",
+		aLog:a_scriptDir "\data\alog_",
+		matches:a_scriptDir "\matches"}
 
 ; ask for song count
 songCnt:=inputBox("Best of how many songs?","Match Song Count")

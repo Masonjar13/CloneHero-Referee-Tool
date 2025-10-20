@@ -145,29 +145,60 @@
 		out1:=""
 		
 		; get picks and count wins
+		highPicks:=[],lowPicks:=[],cnt:=0
 		for i in g.c.games {
+			cnt++
 			if (i.DDL.text=high) {
 				highWins++
+				p:=regExReplace(i.DDLS.text,"(Solo - )|(Strum - )|(Hybrid - )")
+				highPicks.push([p,cnt])
 			} else if (i.DDL.text=low) {
 				lowWins++
+				p:=regExReplace(i.DDLS.text,"(Solo - )|(Strum - )|(Hybrid - )")
+				lowPicks.push([p,cnt])
 			} else if !(i.DDLS.text) { ; no winner, no song pick
 				break
 			}
 			
-			out1.="G" a_index ": " i.text.text i.DDLS.text (i.DDL.text ? " - " i.DDL.text " wins!`n" : "")
+			out1.="G" a_index ": " i.text.text p (i.DDL.text ? " - " i.DDL.text " wins!`n" : "")
 		}
 		out:=(group?"Group " group "`n`n":"")
 			. (this.highSeedNum?this.highSeedNum " ":"") high " " highWins "-" lowWins " " low (this.lowSeedNum?" " this.lowSeedNum:"") "`n`n"
 			. (this.g.c.coinFlipResult.value?this.highSeed " calls _____, coin flip lands on " this.g.c.coinFlipResult.value "`n`n":"")
 			. (this.deferV?high " deferred ban/pick`n`n":"")
-			. this.highSeed " bans " regExReplace(g.c.highSeedBanDDL.text,"(Solo - )|(Strum - )|(Hybrid - )") "`n"
-			. this.lowSeed " bans " regExReplace(g.c.lowSeedBanDDL.text,"(Solo - )|(Strum - )|(Hybrid - )") "`n`n"
-			. regExReplace(out1,"(Solo - )|(Strum - )|(Hybrid - )") "`n"
+			. this.highSeed " bans " (highBan:=regExReplace(g.c.highSeedBanDDL.text,"(Solo - )|(Strum - )|(Hybrid - )")) "`n"
+			. this.lowSeed " bans " (lowBan:=regExReplace(g.c.lowSeedBanDDL.text,"(Solo - )|(Strum - )|(Hybrid - )")) "`n`n"
+			. out1 "`n"
 			. (highWins > this.songCnt//2 ? high " wins!": (lowWins > this.songCnt//2 ? low " wins!": (highWins = this.songCnt//2 && highWins=lowWins ? "Drawn Match" : "")))
 		
+		; format json
+		winner:=highWins > lowWins ? "highSeed" : highWins == lowWins ? "draw" : "lowSeed"
+;		coinFlip:=this.g.c.coinFlipResult.value?this.highSeed
+		jOut:=JSON.Dump({group:group,setlist:g.c.setlistDDL.text,defer:this.deferV,winner:winner,
+			highSeed:{
+				seed:this.highSeedNum?this.highSeedNum:0,
+				name:high,
+				wins:highWins,
+				ban:highBan,
+				picks:highPicks
+			},
+			lowSeed:{
+				seed:this.lowSeedNum?this.lowSeedNum:0,
+				name:low,
+				wins:lowWins,
+				ban:lowBan,
+				picks:lowPicks
+			}
+		})
+
+		; check for live instance
+		static aID:=a_tickCount
+		aLog(jOut,this.files.alog aID)
 		; called from quit or button?
 		if (_="exit") {
 			mLog(out,this.files.log)
+			mLog(jOut,this.files.jlog)
+			fileDelete(this.files.alog aID)
 		} else {
 			a_clipboard:=out
 			tool("Output saved to clipboard")
@@ -182,8 +213,15 @@
 			msgbox("Please enter both player names before taking a screenshot.","Screenshot")
 		} else {
 			dirCreate(scPath:=files.matches "\" g.c.highSeedEdit.value " vs " g.c.lowSeedEdit.value " - " ts)
-			screenshot(scPath)
+			fPath:=screenshot(scPath)
 			winActivate("ahk_id" g.hwnd)
+
+			; validate and notify user
+			if (fileExist(fPath)) {
+				tool("Screenshot taken")
+			} else {
+				tool("Unspecified error, Screenshot not taken",5000)
+			}
 		}
 	}
 

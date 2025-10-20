@@ -41,6 +41,13 @@ mLog(text,logFile) {
 	fileAppend(a_nowUTC " | " timeStamp(a_nowUTC).timedate  " | " timeStamp().timedate "`n" text "`n`n",logFile)
 }
 
+aLog(text,logFile) {
+	if (fileExist(logFile)) {
+		fileDelete(logFile)
+	}
+	fileAppend(text,logFile)
+}
+
 screenshot(filePath) {
 	static pt:=gdip_startup()
 	static ch:="Clone Hero ahk_class UnityWndClass ahk_exe Clone Hero.exe"
@@ -55,6 +62,7 @@ screenshot(filePath) {
 	sc:=gdip_bitmapFromScreen(x "|" y "|" w "|" h)
 	gdip_saveBitmapToFile(sc,filePath "\" (++cnt) ".png")
 	gdip_disposeImage(sc)
+	return filePath "\" cnt
 }
 
 b64eText(text,encoding:="UTF-8") {
