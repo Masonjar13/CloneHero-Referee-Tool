@@ -29,7 +29,7 @@ files:={data:a_scriptDir "\data",
 
 ; ask for song count
 songCnt:=inputBox("Best of how many songs?","Match Song Count")
-if (!songCnt || !isDigit(songCnt.value) || songCnt.result!="OK")
+if (!songCnt.value || !isDigit(songCnt.value) || songCnt.result!="OK")
 	exitApp()
 
 CHTool:=CHRefTool(files,songCnt.value)

@@ -3,6 +3,8 @@
 		this.files:=files,this.songCnt:=songCnt
 		this.highSeed:=this.lowSeed:=this.highSeedNum:=this.lowSeedNum:=""
 		this.deferV:=0
+		this.uuid:=0
+		this.aID:=a_tickCount
 		this.loadData()
 		this.makeGui()
 	}
@@ -27,7 +29,7 @@
 		; load setlists
 		setlist:=object()
 		setlist.lists:=reverseArray(strSplit(iniRead(files.ini),"`n"))
-		setlist.sets:=map(),setlist.setsTB:=map()
+		setlist.sets:=map(),setlist.setsTB:=map(),setlist.altConfig:=map()
 
 		for i in setlist.lists {
 			set:=[],setTB:=[],j:=1
@@ -48,6 +50,9 @@
 					}
 				}
 			}
+
+			; check altConfig
+			setlist.altConfig[i]:=iniRead(files.ini,i,'altConfig',0)
 			setlist.sets[i]:=set
 			setlist.setsTB[i]:=setTB
 		}
@@ -103,7 +108,7 @@
 		g.c.games:=array()
 		loop songCnt {
 			g.c.games.push(object())
-			g.c.games[a_index].text:=g.add("text","xm section w250 right",(a_index = songCnt ? "TIEBREAKER - " : "picks "))
+			g.c.games[a_index].text:=g.add("text","xm section w250 right",(a_index = songCnt ? "TIEBREAKER - " : "picks"))
 			g.setFont("s12")
 			g.c.games[a_index].DDLS:=g.add("dropDownList","ys w250") ; songs
 			g.setFont("s15")
@@ -112,6 +117,7 @@
 			g.c.games[a_index].DDL:=g.add("dropDownList","ys w250") ; players
 			g.setFont("s15")
 			g.c.games[a_index].DDL.onEvent("change","nextPick")
+			g.c.games[a_index].DDLS.onEvent("change","nextPick")
 		}
 
 		; gui events
@@ -130,79 +136,122 @@
 	}
 
 	; event methods
-	output(ctrl,_) {
+	outputMake() { ; format output
 		g:=this.g
-		
+
 		high:=trim(strReplace(g.c.highSeedEdit.value,this.highSeedNum))
 		low:=trim(strReplace(g.c.lowSeedEdit.value,this.lowSeedNum))
+		if !(high || low) {
+			return -1
+		}
 		highWins:=lowWins:=0
 		group:=g.c.groupEdit.value
-		
-		if !(high || low) {
-			return
-		}
-		
-		out1:=""
-		
+
+		out:=""
+
 		; get picks and count wins
-		highPicks:=[],lowPicks:=[],cnt:=0
+		highPicks:=[],lowPicks:=[],cnt:=0,p:="",tb:=""
 		for i in g.c.games {
+			w:=""
 			cnt++
+			p:=regExReplace(i.DDLS.text,"(Solo - )|(Strum - )|(Hybrid - )")
 			if (i.DDL.text=high) {
 				highWins++
-				p:=regExReplace(i.DDLS.text,"(Solo - )|(Strum - )|(Hybrid - )")
-				highPicks.push([p,cnt])
+				w:=high
 			} else if (i.DDL.text=low) {
 				lowWins++
-				p:=regExReplace(i.DDLS.text,"(Solo - )|(Strum - )|(Hybrid - )")
-				lowPicks.push([p,cnt])
-			} else if !(i.DDLS.text) { ; no winner, no song pick
-				break
+				w:=low
 			}
-			
-			out1.="G" a_index ": " i.text.text p (i.DDL.text ? " - " i.DDL.text " wins!`n" : "")
+
+			if p {
+				if (high && inStr(i.text.text,high)) { ; high pick
+					;highWins++
+					;p:=regExReplace(i.DDLS.text,"(Solo - )|(Strum - )|(Hybrid - )")
+					highPicks.push({song:p,index:cnt,winner:w})
+				} else if (low && inStr(i.text.text,low)) { ; low pick
+					;lowWins++
+					;p:=regExReplace(i.DDLS.text,"(Solo - )|(Strum - )|(Hybrid - )")
+					lowPicks.push({song:p,index:cnt,winner:w})
+				} else if !inStr(i.text.text,"picks"){ ; must be tb?
+					tb:={song:p,winner:w}
+				}
+				out.="G" a_index ": " i.text.text p (i.DDL.text ? " - " i.DDL.text " wins!" : "") "`n"
+			}
 		}
+
 		out:=(group?"Group " group "`n`n":"")
 			. (this.highSeedNum?this.highSeedNum " ":"") high " " highWins "-" lowWins " " low (this.lowSeedNum?" " this.lowSeedNum:"") "`n`n"
 			. (this.g.c.coinFlipResult.value?this.highSeed " calls _____, coin flip lands on " this.g.c.coinFlipResult.value "`n`n":"")
 			. (this.deferV?high " deferred ban/pick`n`n":"")
 			. this.highSeed " bans " (highBan:=regExReplace(g.c.highSeedBanDDL.text,"(Solo - )|(Strum - )|(Hybrid - )")) "`n"
 			. this.lowSeed " bans " (lowBan:=regExReplace(g.c.lowSeedBanDDL.text,"(Solo - )|(Strum - )|(Hybrid - )")) "`n`n"
-			. out1 "`n"
+			. out "`n"
 			. (highWins > this.songCnt//2 ? high " wins!": (lowWins > this.songCnt//2 ? low " wins!": (highWins = this.songCnt//2 && highWins=lowWins ? "Drawn Match" : "")))
 		
 		; format json
 		winner:=highWins > lowWins ? "highSeed" : highWins == lowWins ? "draw" : "lowSeed"
 ;		coinFlip:=this.g.c.coinFlipResult.value?this.highSeed
-		jOut:=JSON.Dump({group:group,setlist:g.c.setlistDDL.text,defer:this.deferV,winner:winner,
+		jOut:={group:group,setlist:g.c.setlistDDL.text,defer:this.deferV,winner:winner,songCount:this.songCnt,
 			highSeed:{
-				seed:this.highSeedNum?this.highSeedNum:0,
+				seed:this.highSeedNum?trim(this.highSeedNum,"()"):0,
 				name:high,
 				wins:highWins,
 				ban:highBan,
 				picks:highPicks
 			},
 			lowSeed:{
-				seed:this.lowSeedNum?this.lowSeedNum:0,
+				seed:this.lowSeedNum?trim(this.lowSeedNum,"()"):0,
 				name:low,
 				wins:lowWins,
 				ban:lowBan,
 				picks:lowPicks
 			}
-		})
+		}
+		if tb {
+			jOut.tb:=tb
+		}
+		this.sOut:=out
+		this.jOut:=JSON.Dump(jOut)
+	}
 
+	output(ctrl,_) { ; on-exit or clipboard button
+		err:=this.outputMake()
+		if err {
+			tool("Add player names first!")
+			return
+		}
 		; check for live instance
-		static aID:=a_tickCount
-		aLog(jOut,this.files.alog aID)
+;		aLog(jOut,this.files.alog this.uuid)
+;		aLog(jOut,this.files.alog this.aID)
+
 		; called from quit or button?
 		if (_="exit") {
-			mLog(out,this.files.log)
-			mLog(jOut,this.files.jlog)
-			fileDelete(this.files.alog aID)
+			mLog(this.sOut,this.files.log)
+			mLog(this.jOut,this.files.jlog)
+			try {
+				fileDelete(this.files.alog this.aID)
+			}
 		} else {
-			a_clipboard:=out
+			a_clipboard:=this.sOut
 			tool("Output saved to clipboard")
 		}
+	}
+
+	outputLive(_*) { ; live json update
+		err:=this.outputMake()
+		if err {
+			return
+		}
+		;aLog(jOut,this.files.alog this.uuid)
+		aLog(this.jOut,this.files.alog this.aID)
+		if this.uuid {
+			this.jsonPost(this.jOut)
+		}
+	}
+
+	jsonPost(jsonP) {
+		; post-call with json to server
+		return
 	}
 
 	getScreenshot(ctrl,_) {
@@ -248,7 +297,7 @@
 				this.highSeedNum:=""
 			}
 			g.c.highSeedBanText.text:=pName " bans"
-			g.c.games[1].text.text:=pName " picks "
+			g.c.games[1].text.text:=pName " picks"
 			this.highSeed:=pName
 		} else if (seed="low") {
 			if this.lowSeed = pName { ; didn't change
@@ -266,7 +315,7 @@
 
 		for i in g.c.games {
 			i.DDL.delete()
-			a:=[]
+			a:=[""]
 			if (this.highSeed) {
 				a.push(this.highSeed)
 			}
@@ -280,13 +329,21 @@
 				g.c.games[a_index+1].text.text:=" picks "
 			}
 		}
+
+		; altConfig switch
+		switch this.altConfig {
+			case "BWS":
+				this.altBWS()
+		}
+		this.outputLive()
 	}
 
 	songsUpdate(ctrl,_) {
 		g:=this.g,setlist:=this.setlist
 		
-		set:=setlist.sets[setlist.lists[g.c.setlistDDL.value]]
-		setTB:=setlist.setsTB[setlist.lists[g.c.setlistDDL.value]]
+		set:=[""],set.push(setlist.sets[setlist.lists[g.c.setlistDDL.value]]*)
+		setTB:=[""],setTB.push(setlist.setsTB[setlist.lists[g.c.setlistDDL.value]])
+		this.altConfig:=setlist.altConfig[setlist.lists[g.c.setlistDDL.value]]
 
 		g.c.highSeedBanDDL.delete()
 		g.c.highSeedBanDDL.add(set)
@@ -297,8 +354,8 @@
 			i.DDLS.delete()
 			if (a_index=g.c.games.length) {
 				if !setTB.length { ; no TBs
-					if g.c.games[g.c.games.length].text.text != "picks " {
-						g.c.games[g.c.games.length].text.text := "picks "
+					if g.c.games[g.c.games.length].text.text != "picks" {
+						g.c.games[g.c.games.length].text.text := "picks"
 					}
 					i.DDLs.add(set)
 				} else {
@@ -308,9 +365,18 @@
 					i.DDLS.add(setTB)
 				}
 			} else {
+				if (i.text.text != "picks") {
+					i.text.text := "picks"
+				}
 				i.DDLS.add(set)
 			}
 		}
+		; altConfig switch
+		switch this.altConfig {
+			case "BWS":
+				this.altBWS()
+		}
+		this.outputLive()
 	}
 
 	nextPick(ctrl,_) {
@@ -319,6 +385,13 @@
 		high:=this.highSeed
 		low:=this.lowSeed
 		
+		; altConfig switch
+		switch this.altConfig {
+			case "BWS":
+				this.outputLive()
+				return
+		}
+
 		for i in g.c.games {
 			if (a_index = songCnt-1 && this.setlist.setsTB[this.setlist.lists[this.g.c.setlistDDL.value]].length)
 				break
@@ -334,6 +407,7 @@
 					g.c.games[a_index+1].text.text:=" picks "
 			}
 		}
+		this.outputLive()
 	}
 
 	defer(ctrl,_) {
@@ -353,6 +427,13 @@
 		g.c.highSeedBanText.text:=this.highSeed " bans"
 		g.c.lowSeedBanText.text:=this.lowSeed " bans"
 		g.c.games[1].text.text:=this.highSeed " picks "
+
+		; altConfig switch
+		switch this.altConfig {
+			case "BWS":
+				this.altBWS()
+		}
+		this.outputLive()
 	}
 
 	onHover() {
@@ -394,5 +475,21 @@
 	
 	quit(reason,code) {
 		this.output(0,"exit")
+	}
+
+	; altConfigs
+	altBWS(){
+
+		; pre-set all picks
+		for i in this.g.c.games {
+			if (a_index=this.g.c.games.length) {
+				if i.text.text != "DECIDER - " {
+					i.text.text := "DECIDER - "
+				}
+			} else {
+				cPick := mod(this.deferV?a_index+1:a_index,2)?this.highSeed:this.lowSeed
+				i.text.text := cPick " picks"
+			}
+		}
 	}
 }
