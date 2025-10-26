@@ -1,7 +1,8 @@
-﻿class CHRefTool {
+﻿#warn all,off
+class CHRefTool {
 	__new(files,songCnt) {
 		this.files:=files,this.songCnt:=songCnt
-		this.highSeed:=this.lowSeed:=this.highSeedNum:=this.lowSeedNum:=""
+		this.highSeed:=this.lowSeed:=this.highSeedNum:=this.lowSeedNum:=this.altConfig:=""
 		this.deferV:=0
 		this.uuid:=0
 		this.aID:=a_tickCount
@@ -63,11 +64,14 @@
 		songCnt:=this.songCnt
 		
 		; create gui
-		g:=gui(,"CloneHero Tournament Reffing",this)
+		g:=gui(,"CloneHero Tournament Reffing",this),this.g:=g
 		g.setFont("s15","Helvetica")
 
 		; controls
 		g.c:=object()
+
+		; accessory guis obj
+		g.a:=object()
 
 		; basic info
 		g.c.setlistText:=g.add("text","section","Setlist: ")
@@ -95,6 +99,7 @@
 		g.c.highSeedBanText:=g.add("text","xm ys+80 section w250 right","bans") ; insert High Seed Player name
 		g.setFont("s12")
 		g.c.highSeedBanDDL:=g.add("dropDownList","ys w250") ; song list
+		g.c.highSeedBanDDL2:=g.add("dropDownList","yp+0 xp+130 w120 hidden") ; song list
 		g.setFont("s15")
 		
 		; screenshot
@@ -102,6 +107,7 @@
 		g.c.lowSeedBanText:=g.add("text","xm ys+38 section w250 right","bans") ; insert Low Seed Player name
 		g.setFont("s12")
 		g.c.lowSeedBanDDL:=g.add("dropDownList","ys w250") ; song list
+		g.c.lowSeedBanDDL2:=g.add("dropDownList","yp+0 xp+130 w120 hidden") ; song list
 		g.setFont("s15")
 
 		; games
@@ -120,6 +126,29 @@
 			g.c.games[a_index].DDLS.onEvent("change","nextPick")
 		}
 
+		; --- accessory guis
+		; Accessory: Points
+		g.a.points:=gui(,"Accessory: Points",this)
+		g.a.points.opt("+owner" g.hwnd)
+		g.a.points.setFont("s12","Helvetica")
+		g.a.points.highSeedPoints:=g.a.points.add("edit","section r1 w50 limit3 number",0)
+		g.a.points.highSeedText:=g.a.points.add("text","xs","High Seed Points")
+		g.a.points.lowSeedPoints:=g.a.points.add("edit","ys section r1 w50 limit3 number",0)
+		g.a.points.lowSeedText:=g.a.points.add("text","xs","Low Seed Points")
+		g.a.points.winText:=g.a.points.add("text","xm section","Winner:")
+		g.a.points.winDDL:=g.a.points.add("dropDownList","ys w250")
+		
+
+		g.a.points.highSeedPoints.onEvent("change","accessoryPoints")
+		g.a.points.lowSeedPoints.onEvent("change","accessoryPoints")
+
+		; gui menu
+		g.m:=object(),g.m.bar:=menuBar()
+		g.m.accessories:=menu()
+		g.m.accessories.add("&Points",(*) => g.a.points.show())
+		g.m.bar.Add("&Accessories",g.m.accessories)
+		g.menuBar:=g.m.bar
+
 		; gui events
 		g.onEvent("close",a=>exitApp())
 		g.c.outputButton.onEvent("click","output")
@@ -131,8 +160,6 @@
 		g.c.defer.onEvent("click","defer")
 		g.c.coinFlip.onEvent("click","coinFlip")
 		setTimer(objBindMethod(this,"onHover"),10)
-
-		this.g:=g
 	}
 
 	; event methods
@@ -146,6 +173,8 @@
 		}
 		highWins:=lowWins:=0
 		group:=g.c.groupEdit.value
+		highSeedPoints:=this.g.a.points.highSeedPoints.value
+		lowSeedPoints:=this.g.a.points.lowSeedPoints.value
 
 		out:=""
 
@@ -173,24 +202,36 @@
 					;p:=regExReplace(i.DDLS.text,"(Solo - )|(Strum - )|(Hybrid - )")
 					lowPicks.push({song:p,index:cnt,winner:w})
 				} else if !inStr(i.text.text,"picks"){ ; must be tb?
-					tb:={song:p,winner:w}
+					tb:={song:p,index:cnt,winner:w}
 				}
 				out.="G" a_index ": " i.text.text p (i.DDL.text ? " - " i.DDL.text " wins!" : "") "`n"
 			}
 		}
 
-		out:=(group?"Group " group "`n`n":"")
-			. (this.highSeedNum?this.highSeedNum " ":"") high " " highWins "-" lowWins " " low (this.lowSeedNum?" " this.lowSeedNum:"") "`n`n"
-			. (this.g.c.coinFlipResult.value?this.highSeed " calls _____, coin flip lands on " this.g.c.coinFlipResult.value "`n`n":"")
+		if (highSeedPoints || lowSeedPoints) {
+			highWins:=highSeedPoints
+			lowWins:=lowSeedPoints
+			winner:=g.a.points.winDDL.value
+			winnerText:=winner ? winner " wins!" : ""
+		} else {
+			winner:=highWins > this.songCnt//2 ? high : (lowWins > this.songCnt//2 ? low : (highWins = this.songCnt//2 && highWins=lowWins ? "Draw" : ""))
+			winnerText:=winner == "Draw" ? "Drawn Match" : (winner ? winner " wins!": "")
+		}
+		highBan:=[],lowBan:=[]
+		out:=(group?"Group " group "`n`n" : "")
+			. (this.highSeedNum ?this.highSeedNum " " : "") high " " highWins "-" lowWins " " low (this.lowSeedNum ? " " this.lowSeedNum : "") "`n`n"
+			. (this.g.c.coinFlipResult.value ? this.highSeed " calls _____, coin flip lands on " this.g.c.coinFlipResult.value "`n`n":"")
 			. (this.deferV?high " deferred ban/pick`n`n":"")
-			. this.highSeed " bans " (highBan:=regExReplace(g.c.highSeedBanDDL.text,"(Solo - )|(Strum - )|(Hybrid - )")) "`n"
-			. this.lowSeed " bans " (lowBan:=regExReplace(g.c.lowSeedBanDDL.text,"(Solo - )|(Strum - )|(Hybrid - )")) "`n`n"
+			. this.highSeed " bans " (highBan.push(regExReplace(g.c.highSeedBanDDL.text,"(Solo - )|(Strum - )|(Hybrid - )")))
+			. (g.c.highSeedBanDDL2.visible ? " & " highBan.push(regExReplace(g.c.highSeedBanDDL2.text,"(Solo - )|(Strum - )|(Hybrid - )")) : "") "`n"
+			. this.lowSeed " bans " (lowBan.push(regExReplace(g.c.lowSeedBanDDL.text,"(Solo - )|(Strum - )|(Hybrid - )")))
+			. (g.c.lowSeedBanDDL2.visible ? " & " lowBan.push(regExReplace(g.c.lowSeedBanDDL2.text,"(Solo - )|(Strum - )|(Hybrid - )")) : "") "`n`n"
 			. out "`n"
-			. (highWins > this.songCnt//2 ? high " wins!": (lowWins > this.songCnt//2 ? low " wins!": (highWins = this.songCnt//2 && highWins=lowWins ? "Drawn Match" : "")))
+			. winnerText
 		
 		; format json
-		winner:=highWins > lowWins ? "highSeed" : highWins == lowWins ? "draw" : "lowSeed"
-;		coinFlip:=this.g.c.coinFlipResult.value?this.highSeed
+		;winner:=highWins > lowWins ? "highSeed" : highWins == lowWins ? "draw" : "lowSeed"
+		;coinFlip:=this.g.c.coinFlipResult.value?this.highSeed
 		jOut:={group:group,setlist:g.c.setlistDDL.text,defer:this.deferV,winner:winner,songCount:this.songCnt,
 			highSeed:{
 				seed:this.highSeedNum?trim(this.highSeedNum,"()"):0,
@@ -323,17 +364,28 @@
 				a.push(this.lowSeed)
 			}
 			i.DDL.add(a)
-			
+
 			; blank out names for picks
 			if (a_index<this.songCnt-1) {
 				g.c.games[a_index+1].text.text:=" picks "
 			}
 		}
+		
+		; accessory: points
+		g.a.points.winDDL.delete()
+		g.a.points.winDDL.add(a)
 
 		; altConfig switch
 		switch this.altConfig {
 			case "BWS":
 				this.altBWS()
+			default:
+				if (g.c.highSeedBanDDL2.visible || g.c.lowSeedBanDDL2.visible) {
+					g.c.highSeedBanDDL.move(,,250)
+					g.c.highSeedBanDDL2.visible:=0
+					g.c.lowSeedBanDDL.move(,,250)
+					g.c.lowSeedBanDDL2.visible:=0
+				}
 		}
 		this.outputLive()
 	}
@@ -345,10 +397,10 @@
 		setTB:=[""],setTB.push(setlist.setsTB[setlist.lists[g.c.setlistDDL.value]])
 		this.altConfig:=setlist.altConfig[setlist.lists[g.c.setlistDDL.value]]
 
-		g.c.highSeedBanDDL.delete()
-		g.c.highSeedBanDDL.add(set)
-		g.c.lowSeedBanDDL.delete()
-		g.c.lowSeedBanDDL.add(set)
+		g.c.highSeedBanDDL.delete(),g.c.highSeedBanDDL2.delete()
+		g.c.highSeedBanDDL.add(set),g.c.highSeedBanDDL2.add(set)
+		g.c.lowSeedBanDDL.delete(),g.c.lowSeedBanDDL2.delete()
+		g.c.lowSeedBanDDL.add(set),g.c.lowSeedBanDDL2.add(set)
 		
 		for i in g.c.games {
 			i.DDLS.delete()
@@ -375,6 +427,13 @@
 		switch this.altConfig {
 			case "BWS":
 				this.altBWS()
+			default:
+				if (g.c.highSeedBanDDL2.visible || g.c.lowSeedBanDDL2.visible) {
+					g.c.highSeedBanDDL.move(,,250)
+					g.c.highSeedBanDDL2.visible:=0
+					g.c.lowSeedBanDDL.move(,,250)
+					g.c.lowSeedBanDDL2.visible:=0
+				}
 		}
 		this.outputLive()
 	}
@@ -426,7 +485,7 @@
 		; swap bans & first pick
 		g.c.highSeedBanText.text:=this.highSeed " bans"
 		g.c.lowSeedBanText.text:=this.lowSeed " bans"
-		g.c.games[1].text.text:=this.highSeed " picks "
+		g.c.games[1].text.text:=this.highSeed " picks"
 
 		; altConfig switch
 		switch this.altConfig {
@@ -479,6 +538,11 @@
 
 	; altConfigs
 	altBWS(){
+		; set bans
+		this.g.c.lowSeedBanDDL.move(,,120)
+		this.g.c.lowSeedBanDDL2.visible:=1
+		this.g.c.highSeedBanDDL.move(,,120)
+		this.g.c.highSeedBanDDL2.visible:=1
 
 		; pre-set all picks
 		for i in this.g.c.games {
@@ -491,5 +555,13 @@
 				i.text.text := cPick " picks"
 			}
 		}
+	}
+
+	; accessory
+	accessoryPoints(g,_) {
+		if g.value == "" {
+			g.value:=0
+		}
+		this.outputLive()
 	}
 }
