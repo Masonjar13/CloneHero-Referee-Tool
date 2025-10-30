@@ -38,14 +38,11 @@ tool(str:="",wait:=2500,x:=unset,y:=unset) {
 }
 
 mLog(text,logFile) {
-	fileAppend(a_nowUTC " | " timeStamp(a_nowUTC).timedate  " | " timeStamp().timedate "`n" text "`n`n",logFile)
+	fileOpen(logFile,2,"UTF-8").write(a_nowUTC " | " timeStamp(a_nowUTC).timedate  " | " timeStamp().timedate "`n" text "`n`n")
 }
 
 aLog(text,logFile) {
-	if (fileExist(logFile)) {
-		fileDelete(logFile)
-	}
-	fileAppend(text,logFile)
+	fileOpen(logFile,1,"UTF-8").write(text)
 }
 
 screenshot(filePath) {

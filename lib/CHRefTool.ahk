@@ -1,10 +1,10 @@
-﻿#warn all,off
-class CHRefTool {
+﻿class CHRefTool {
 	__new(files,songCnt) {
 		this.files:=files,this.songCnt:=songCnt
 		this.highSeed:=this.lowSeed:=this.highSeedNum:=this.lowSeedNum:=this.altConfig:=""
 		this.deferV:=0
 		this.uuid:=0
+		this.live:=false
 		this.aID:=a_tickCount
 		this.loadData()
 		this.makeGui()
@@ -30,11 +30,14 @@ class CHRefTool {
 		; load setlists
 		setlist:=object()
 		setlist.lists:=reverseArray(strSplit(iniRead(files.ini),"`n"))
-		setlist.sets:=map(),setlist.setsTB:=map(),setlist.altConfig:=map()
+		setlist.sets:=map(),setlist.setsTB:=map(),setlist.altConfig:=map(),setlist.setTags:="(solo)|(strum)|(hybrid)"
 
 		for i in setlist.lists {
 			set:=[],setTB:=[],j:=1
-			while j:=regExMatch(iniRead(files.ini,i),"\d+=\K([^``]+)``(\S+)",&songMatch:=unset,j) {
+			while j:=regExMatch(iniRead(files.ini,i),"\d+=\K([^``]+)``([^\r\n]+)",&songMatch:=unset,j) {
+				if (!inStr(setlist.setTags,"(" songMatch[2] ")")) {
+					setlist.setTags.="|(" songMatch[2] ")"
+				}
 				sType:=strReplace(songMatch[2],"TB",,1,&rCnt:=unset)
 				if (rCnt) {
 					setTB.push(sType " - " songMatch[1])
@@ -92,7 +95,7 @@ class CHRefTool {
 
 		; song hover
 		g.setFont("c505050 underline s12 w900")
-		g.c.songHover:=g.add("text","xm+200 w500","Demo Song Text")
+		g.c.songHover:=g.add("text","xm+100 w700","Demo Song Text")
 		g.setFont("norm cblack s15 w400")
 
 		; bans
@@ -126,18 +129,32 @@ class CHRefTool {
 			g.c.games[a_index].DDLS.onEvent("change","nextPick")
 		}
 
+		; Live Updates
+		g.a.live:=gui(,"Go Live",this)
+		g.a.live.opt("+owner" g.hwnd)
+		g.a.live.setFont("s14","Helvetica")
+		g.a.live.goLive:=g.a.live.add("button","w200 h30","Go Live")
+		g.a.live.setFont("s8")
+		g.a.live.uuidText:=g.a.live.add("text","xm w200",)
+		g.a.live.setFont("s12")
+		g.a.live.uuidCopy:=g.a.live.add("button","xp","Copy ID")
+
+		g.a.live.goLive.onEvent("click","goLiveConfirm")
+		g.a.live.uuidCopy.onEvent("click",(g,_) => a_clipboard:=this.g.a.live.uuidText.text)
+
 		; --- accessory guis
 		; Accessory: Points
 		g.a.points:=gui(,"Accessory: Points",this)
 		g.a.points.opt("+owner" g.hwnd)
 		g.a.points.setFont("s12","Helvetica")
-		g.a.points.highSeedPoints:=g.a.points.add("edit","section r1 w50 limit3 number",0)
+		g.a.points.highSeedPoints:=g.a.points.add("edit","section r1 w60 limit3 number",0)
+		g.a.points.highSeedPointsUD:=g.a.points.add("updown","range0-999",0)
 		g.a.points.highSeedText:=g.a.points.add("text","xs","High Seed Points")
-		g.a.points.lowSeedPoints:=g.a.points.add("edit","ys section r1 w50 limit3 number",0)
+		g.a.points.lowSeedPoints:=g.a.points.add("edit","ys section r1 w60 limit3 number",0)
+		g.a.points.lowSeedPointsUD:=g.a.points.add("updown","range0-999",0)
 		g.a.points.lowSeedText:=g.a.points.add("text","xs","Low Seed Points")
 		g.a.points.winText:=g.a.points.add("text","xm section","Winner:")
 		g.a.points.winDDL:=g.a.points.add("dropDownList","ys w250")
-		
 
 		g.a.points.highSeedPoints.onEvent("change","accessoryPoints")
 		g.a.points.lowSeedPoints.onEvent("change","accessoryPoints")
@@ -146,7 +163,8 @@ class CHRefTool {
 		g.m:=object(),g.m.bar:=menuBar()
 		g.m.accessories:=menu()
 		g.m.accessories.add("&Points",(*) => g.a.points.show())
-		g.m.bar.Add("&Accessories",g.m.accessories)
+		g.m.bar.add("Go &Live",(*) => g.a.live.show())
+		g.m.bar.add("&Accessories",g.m.accessories)
 		g.menuBar:=g.m.bar
 
 		; gui events
@@ -179,11 +197,12 @@ class CHRefTool {
 		out:=""
 
 		; get picks and count wins
-		highPicks:=[],lowPicks:=[],cnt:=0,p:="",tb:=""
+		rounds:=[],cnt:=0,p:="",tb:=""
 		for i in g.c.games {
 			w:=""
 			cnt++
-			p:=regExReplace(i.DDLS.text,"(Solo - )|(Strum - )|(Hybrid - )")
+			;p:=regExReplace(i.DDLS.text,"(Solo - )|(Strum - )|(Hybrid - )")
+			p:=this.removeTags(i.DDLs.text)
 			if (i.DDL.text=high) {
 				highWins++
 				w:=high
@@ -196,15 +215,15 @@ class CHRefTool {
 				if (high && inStr(i.text.text,high)) { ; high pick
 					;highWins++
 					;p:=regExReplace(i.DDLS.text,"(Solo - )|(Strum - )|(Hybrid - )")
-					highPicks.push({song:p,index:cnt,winner:w})
+					rounds.push({song:p,index:cnt,winner:w,pick:high})
 				} else if (low && inStr(i.text.text,low)) { ; low pick
 					;lowWins++
 					;p:=regExReplace(i.DDLS.text,"(Solo - )|(Strum - )|(Hybrid - )")
-					lowPicks.push({song:p,index:cnt,winner:w})
+					rounds.push({song:p,index:cnt,winner:w,pick:low})
 				} else if !inStr(i.text.text,"picks"){ ; must be tb?
 					tb:={song:p,index:cnt,winner:w}
 				}
-				out.="G" a_index ": " i.text.text p (i.DDL.text ? " - " i.DDL.text " wins!" : "") "`n"
+				out.=strReplace("G" a_index ": " i.text.text " " p (w ? " - " w " wins!" : "") "`n","  "," ")
 			}
 		}
 
@@ -222,10 +241,14 @@ class CHRefTool {
 			. (this.highSeedNum ?this.highSeedNum " " : "") high " " highWins "-" lowWins " " low (this.lowSeedNum ? " " this.lowSeedNum : "") "`n`n"
 			. (this.g.c.coinFlipResult.value ? this.highSeed " calls _____, coin flip lands on " this.g.c.coinFlipResult.value "`n`n":"")
 			. (this.deferV?high " deferred ban/pick`n`n":"")
-			. this.highSeed " bans " (highBan.push(regExReplace(g.c.highSeedBanDDL.text,"(Solo - )|(Strum - )|(Hybrid - )")))
-			. (g.c.highSeedBanDDL2.visible ? " & " highBan.push(regExReplace(g.c.highSeedBanDDL2.text,"(Solo - )|(Strum - )|(Hybrid - )")) : "") "`n"
-			. this.lowSeed " bans " (lowBan.push(regExReplace(g.c.lowSeedBanDDL.text,"(Solo - )|(Strum - )|(Hybrid - )")))
-			. (g.c.lowSeedBanDDL2.visible ? " & " lowBan.push(regExReplace(g.c.lowSeedBanDDL2.text,"(Solo - )|(Strum - )|(Hybrid - )")) : "") "`n`n"
+			;. this.highSeed " bans " (highBan.push(regExReplace(g.c.highSeedBanDDL.text,"(Solo - )|(Strum - )|(Hybrid - )")))
+			;. (g.c.highSeedBanDDL2.visible ? " & " highBan.push(regExReplace(g.c.highSeedBanDDL2.text,"(Solo - )|(Strum - )|(Hybrid - )")) : "") "`n"
+			;. this.lowSeed " bans " (lowBan.push(regExReplace(g.c.lowSeedBanDDL.text,"(Solo - )|(Strum - )|(Hybrid - )")))
+			;. (g.c.lowSeedBanDDL2.visible ? " & " lowBan.push(regExReplace(g.c.lowSeedBanDDL2.text,"(Solo - )|(Strum - )|(Hybrid - )")) : "") "`n`n"
+			. this.highSeed " bans " (highBan.push(_:=this.removeTags(g.c.highSeedBanDDL.text))) _
+			. (g.c.highSeedBanDDl2.visible ? " & " highBan.push(_:=this.removeTags(g.c.highSeedBanDDL2.text)) _ : "") "`n"
+			. this.lowSeed " bans " (lowBan.push(_:=this.removeTags(g.c.lowSeedBanDDL.text))) _
+			. (g.c.lowSeedBanDDl2.visible ? " & " lowBan.push(_:=this.removeTags(g.c.lowSeedBanDDL2.text)) _ : "") "`n"
 			. out "`n"
 			. winnerText
 		
@@ -238,15 +261,14 @@ class CHRefTool {
 				name:high,
 				wins:highWins,
 				ban:highBan,
-				picks:highPicks
 			},
 			lowSeed:{
 				seed:this.lowSeedNum?trim(this.lowSeedNum,"()"):0,
 				name:low,
 				wins:lowWins,
 				ban:lowBan,
-				picks:lowPicks
-			}
+			},
+			rounds: rounds
 		}
 		if tb {
 			jOut.tb:=tb
@@ -394,7 +416,7 @@ class CHRefTool {
 		g:=this.g,setlist:=this.setlist
 		
 		set:=[""],set.push(setlist.sets[setlist.lists[g.c.setlistDDL.value]]*)
-		setTB:=[""],setTB.push(setlist.setsTB[setlist.lists[g.c.setlistDDL.value]])
+		setTB:=[""],setTB.push(setlist.setsTB[setlist.lists[g.c.setlistDDL.value]]*)
 		this.altConfig:=setlist.altConfig[setlist.lists[g.c.setlistDDL.value]]
 
 		g.c.highSeedBanDDL.delete(),g.c.highSeedBanDDL2.delete()
@@ -405,14 +427,14 @@ class CHRefTool {
 		for i in g.c.games {
 			i.DDLS.delete()
 			if (a_index=g.c.games.length) {
-				if !setTB.length { ; no TBs
-					if g.c.games[g.c.games.length].text.text != "picks" {
-						g.c.games[g.c.games.length].text.text := "picks"
+				if (!setTB.length || this.altConfig = "BWS") { ; no TBs
+					if i.text.text != "picks" {
+						i.text.text := "picks"
 					}
 					i.DDLs.add(set)
 				} else {
-					if g.c.games[g.c.games.length].text.text != "TIEBREAKER - " {
-						g.c.games[g.c.games.length].text.text := "TIEBREAKER - "
+					if i.text.text != "TIEBREAKER - " {
+						i.text.text := "TIEBREAKER - "
 					}
 					i.DDLS.add(setTB)
 				}
@@ -503,7 +525,7 @@ class CHRefTool {
 				
 				if (bNum = 1) { ; Setlist DDL
 					return
-				} else if (bNum > 3 && mod(bNum,2)) { ; Winner DDL
+				} else if (bNum > 5 && mod(bNum,2)) { ; Winner DDL
 					return
 				} else {
 					cText:=controlGetText(wCtrl,"ahk_id" this.g.hwnd)
@@ -532,8 +554,38 @@ class CHRefTool {
 		ctrl.enabled:=0
 	}
 	
+	removeTags(str) {
+		x:=regExReplace(str,"^(" this.setlist.setTags ") - ")
+		;msgbox(str "`n" x)
+		return x
+	}
+
 	quit(reason,code) {
 		this.output(0,"exit")
+	}
+
+	goLiveConfirm(_*) {
+		if !this.g.c.setlistDDL.text {
+			msgbox("Setlist is required to go live!","Go Live")
+			return
+		}
+		if (!this.highSeed || !this.lowSeed) { ; player names required
+			msgbox("Player names are required to go live!","Go Live")
+			return
+		}
+		r:=msgbox("Are you sure you want to go live?","Go Live Confirmation","Owner" this.g.a.live.hwnd " 0x4")
+		if (r != "Yes") {
+			return
+		}
+		this.uuid:=this.goLive()
+	}
+
+	goLive() {
+		; request UUID
+		; update this.g.a.live.uuidText
+		msgbox("Not yet implemented. Supplying dummy code.","WIP")
+		this.g.a.live.uuidText.text:="57ae422e-b2bb21f0-bd1c-0060569d2030"
+		return
 	}
 
 	; altConfigs
