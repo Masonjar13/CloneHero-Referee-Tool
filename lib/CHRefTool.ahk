@@ -1,11 +1,16 @@
 ﻿class CHRefTool {
-	__new(files,songCnt) {
+	__new(files,songCnt,endpointInfo) {
 		this.files:=files,this.songCnt:=songCnt
 		this.highSeed:=this.lowSeed:=this.highSeedNum:=this.lowSeedNum:=this.altConfig:=""
 		this.deferV:=0
 		this.uuid:=0
-		this.live:=false
+		this.live:=false,this.scPath:=""
 		this.aID:=a_tickCount
+		this.startTime:=a_nowUTC
+		this.ts:=regExReplace(timeStamp().timedates,"\/|:",".")
+		this.endTime:=JSON.Null
+		json.escapeUnicode:=false
+		this.endpoint:=endpointInfo.endpoint,this.magic:=endpointInfo.magic
 		this.loadData()
 		this.makeGui()
 	}
@@ -98,7 +103,7 @@
 		g.c.songHover:=g.add("text","xm+100 w700","Demo Song Text")
 		g.setFont("norm cblack s15 w400")
 
-		; bans
+		; high bans
 		g.c.highSeedBanText:=g.add("text","xm ys+80 section w250 right","bans") ; insert High Seed Player name
 		g.setFont("s12")
 		g.c.highSeedBanDDL:=g.add("dropDownList","ys w250") ; song list
@@ -109,6 +114,8 @@
 		g.c.screenshotButton:=g.add("button","ys w200 h50","Screenshot")
 		g.c.lowSeedBanText:=g.add("text","xm ys+38 section w250 right","bans") ; insert Low Seed Player name
 		g.setFont("s12")
+
+		; low bans
 		g.c.lowSeedBanDDL:=g.add("dropDownList","ys w250") ; song list
 		g.c.lowSeedBanDDL2:=g.add("dropDownList","yp+0 xp+130 w120 hidden") ; song list
 		g.setFont("s15")
@@ -177,6 +184,11 @@
 		g.c.setlistUpdate.onEvent("click","updateIni")
 		g.c.defer.onEvent("click","defer")
 		g.c.coinFlip.onEvent("click","coinFlip")
+		g.c.highSeedBanDDL.onEvent("change","outputLive")
+		g.c.highSeedBanDDL2.onEvent("change","outputLive")
+		g.c.lowSeedBanDDL.onEvent("change","outputLive")
+		g.c.lowSeedBanDDL2.onEvent("change","outputLive")
+		g.a.points.winDDL.onEvent("change","outputLive")
 		setTimer(objBindMethod(this,"onHover"),10)
 	}
 
@@ -215,47 +227,49 @@
 				if (high && inStr(i.text.text,high)) { ; high pick
 					;highWins++
 					;p:=regExReplace(i.DDLS.text,"(Solo - )|(Strum - )|(Hybrid - )")
-					rounds.push({song:p,index:cnt,winner:w,pick:high})
+					rounds.push({song:this.removeModifiers(p,&mods:="",&speed:=""),index:cnt,winner:w,pick:high}) ;,mods:mods,speed:speed})
 				} else if (low && inStr(i.text.text,low)) { ; low pick
 					;lowWins++
 					;p:=regExReplace(i.DDLS.text,"(Solo - )|(Strum - )|(Hybrid - )")
-					rounds.push({song:p,index:cnt,winner:w,pick:low})
+					rounds.push({song:this.removeModifiers(p,&mods:="",&speed:=""),index:cnt,winner:w,pick:low}) ;,mods:mods,speed:speed})
 				} else if !inStr(i.text.text,"picks"){ ; must be tb?
-					tb:={song:p,index:cnt,winner:w}
+					tb:={song:this.removeModifiers(p,&mods:="",&speed:=""),index:cnt,winner:w} ;,mods:mods,speed:speed}
 				}
 				out.=strReplace("G" a_index ": " i.text.text " " p (w ? " - " w " wins!" : "") "`n","  "," ")
 			}
 		}
 
 		if (highSeedPoints || lowSeedPoints) {
-			highWins:=highSeedPoints
-			lowWins:=lowSeedPoints
-			winner:=g.a.points.winDDL.value
+			highCnt:=highSeedPoints
+			lowCnt:=lowSeedPoints
+			winner:=g.a.points.winDDL.text
 			winnerText:=winner ? winner " wins!" : ""
 		} else {
+			highCnt:=highWins
+			lowCnt:=lowWins
 			winner:=highWins > this.songCnt//2 ? high : (lowWins > this.songCnt//2 ? low : (highWins = this.songCnt//2 && highWins=lowWins ? "Draw" : ""))
 			winnerText:=winner == "Draw" ? "Drawn Match" : (winner ? winner " wins!": "")
 		}
 		highBan:=[],lowBan:=[]
 		out:=(group?"Group " group "`n`n" : "")
-			. (this.highSeedNum ?this.highSeedNum " " : "") high " " highWins "-" lowWins " " low (this.lowSeedNum ? " " this.lowSeedNum : "") "`n`n"
+			. (this.highSeedNum ?this.highSeedNum " " : "") high " " highCnt "-" lowCnt " " low (this.lowSeedNum ? " " this.lowSeedNum : "") "`n`n"
 			. (this.g.c.coinFlipResult.value ? this.highSeed " calls _____, coin flip lands on " this.g.c.coinFlipResult.value "`n`n":"")
 			. (this.deferV?high " deferred ban/pick`n`n":"")
 			;. this.highSeed " bans " (highBan.push(regExReplace(g.c.highSeedBanDDL.text,"(Solo - )|(Strum - )|(Hybrid - )")))
 			;. (g.c.highSeedBanDDL2.visible ? " & " highBan.push(regExReplace(g.c.highSeedBanDDL2.text,"(Solo - )|(Strum - )|(Hybrid - )")) : "") "`n"
 			;. this.lowSeed " bans " (lowBan.push(regExReplace(g.c.lowSeedBanDDL.text,"(Solo - )|(Strum - )|(Hybrid - )")))
 			;. (g.c.lowSeedBanDDL2.visible ? " & " lowBan.push(regExReplace(g.c.lowSeedBanDDL2.text,"(Solo - )|(Strum - )|(Hybrid - )")) : "") "`n`n"
-			. this.highSeed " bans " (highBan.push(_:=this.removeTags(g.c.highSeedBanDDL.text))) _
-			. (g.c.highSeedBanDDl2.visible ? " & " highBan.push(_:=this.removeTags(g.c.highSeedBanDDL2.text)) _ : "") "`n"
-			. this.lowSeed " bans " (lowBan.push(_:=this.removeTags(g.c.lowSeedBanDDL.text))) _
-			. (g.c.lowSeedBanDDl2.visible ? " & " lowBan.push(_:=this.removeTags(g.c.lowSeedBanDDL2.text)) _ : "") "`n"
+			. this.highSeed " bans " (highBan.push(this.removeModifiers(_:=this.removeTags(g.c.highSeedBanDDL.text)))) _
+			. (g.c.highSeedBanDDl2.visible ? " & " highBan.push(this.removeModifiers(_:=this.removeTags(g.c.highSeedBanDDL2.text))) _ : "") "`n"
+			. this.lowSeed " bans " (lowBan.push(this.removeModifiers(_:=this.removeTags(g.c.lowSeedBanDDL.text)))) _
+			. (g.c.lowSeedBanDDl2.visible ? " & " lowBan.push(this.removeModifiers(_:=this.removeTags(g.c.lowSeedBanDDL2.text))) _ : "") "`n"
 			. out "`n"
 			. winnerText
 		
 		; format json
 		;winner:=highWins > lowWins ? "highSeed" : highWins == lowWins ? "draw" : "lowSeed"
 		;coinFlip:=this.g.c.coinFlipResult.value?this.highSeed
-		jOut:={group:group,setlist:g.c.setlistDDL.text,defer:this.deferV,winner:winner,songCount:this.songCnt,
+		jOut:={group:group,setlist:g.c.setlistDDL.text,defer:this.deferV,winner:winner,songCount:this.songCnt,uuid:this.uuid,startTime:this.startTime,endTime:this.endTime,
 			highSeed:{
 				seed:this.highSeedNum?trim(this.highSeedNum,"()"):0,
 				name:high,
@@ -273,11 +287,18 @@
 		if tb {
 			jOut.tb:=tb
 		}
+		if (highSeedPoints || lowSeedPoints) {
+			jOut.highSeed.points:=highSeedPoints
+			jOut.lowSeed.points:=lowSeedPoints
+		}
 		this.sOut:=out
 		this.jOut:=JSON.Dump(jOut)
 	}
 
 	output(ctrl,_) { ; on-exit or clipboard button
+		if (_="exit") { ; live, post completion
+			this.endTime:=a_nowUTC
+		}
 		err:=this.outputMake()
 		if err {
 			tool("Add player names first!")
@@ -293,6 +314,9 @@
 			mLog(this.jOut,this.files.jlog)
 			try {
 				fileDelete(this.files.alog this.aID)
+			}
+			if (this.uuid) { ; live, post completion
+				this.jsonPost(this.jOut)
 			}
 		} else {
 			a_clipboard:=this.sOut
@@ -311,21 +335,53 @@
 			this.jsonPost(this.jOut)
 		}
 	}
+	
+	outputFinalTemp(_*) {
+		this.endTime:=a_nowUTC
+		err:=this.outputMake()
 
+		; remove unplayed matches
+		j:=JSON.Load(this.jOut)
+		list:=""
+		for i,a in j['rounds'] {
+			msgbox(a['index'] "`t" a['winner'])
+			if !a['winner'] {
+;				jF['rounds'].removeAt(i)
+				list.=i
+			}
+		}
+		for i,a in reverseArray(strSplit(list)) {
+			j['rounds'].removeAt(a)
+		}
+		if !j['tb']['winner'] {
+			j.delete('tb')
+		}
+		this.jOut:=JSON.Dump(j)
+		
+		mLog(this.sOut,this.files.log)
+		mLog(this.jOut,this.files.jlog)
+		try {
+			fileDelete(this.files.alog this.aID)
+		}
+		if (this.uuid) { ; live, post completion
+			this.jsonPost(this.jOut)
+		}
+	}
 	jsonPost(jsonP) {
 		; post-call with json to server
+		err:=httpPost(this.endpoint,jsonP,map("Content-Type","application/json; charset=utf8","api-key",this.magic))
+;		msgbox(err)
 		return
 	}
 
 	getScreenshot(ctrl,_) {
 		g:=this.g
 		
-		static ts:=regExReplace(timeStamp().timedates,"\/|:",".")
 		if !(g.c.highSeedEdit.value || g.c.highSeedEdit.value) {
 			msgbox("Please enter both player names before taking a screenshot.","Screenshot")
 		} else {
-			dirCreate(scPath:=files.matches "\" g.c.highSeedEdit.value " vs " g.c.lowSeedEdit.value " - " ts)
-			fPath:=screenshot(scPath)
+			dirCreate(this.scPath:=files.matches "\" g.c.highSeedEdit.value " vs " g.c.lowSeedEdit.value " - " this.ts)
+			fPath:=screenshot(this.scPath)
 			winActivate("ahk_id" g.hwnd)
 
 			; validate and notify user
@@ -560,8 +616,43 @@
 		return x
 	}
 
+	removeModifiers(str,&mods:="",&speed:="") { ; redo this
+		mods:=[]
+		loop 10 {
+			regExMatch(str," \[([^\]]+)\]",&mO:="")
+			if isObject(mO) {
+				mods.push(mO[1])
+				str:=strReplace(str,mO[])
+			} else {
+				break
+			}
+		} until !isObject(mO)
+		regExMatch(str," \((\d{1,4})%\)",&mO:="")
+		if (isObject(mO)) {
+			speed:=mO[1]
+			str:=strReplace(str,mO[])
+		} else {
+			speed:=100
+		}
+		return str
+	}
+
 	quit(reason,code) {
-		this.output(0,"exit")
+;		this.output(0,"exit")
+		this.outputFinalTemp()
+;		if (this.uuid && this.scPath) {
+;			this.uploadScreenshots()
+;		}
+	}
+
+	uploadScreenshots(){
+		screenies:=[]
+		loop files this.scPath "\*.png" {
+			screenies.push(b64e(fileRead(a_loopFileFullPath,"RAW"),fileGetSize(a_loopFileFullPath)))
+		}
+		jOut:=JSON.Dump({screenshots: screenies})
+		fileAppend(jOut,"test.log")
+		this.jsonPost(jOut)
 	}
 
 	goLiveConfirm(_*) {
@@ -578,14 +669,16 @@
 			return
 		}
 		this.uuid:=this.goLive()
+		this.g.a.live.uuidText.text:=this.uuid
 	}
 
 	goLive() {
 		; request UUID
 		; update this.g.a.live.uuidText
-		msgbox("Not yet implemented. Supplying dummy code.","WIP")
-		this.g.a.live.uuidText.text:="57ae422e-b2bb21f0-bd1c-0060569d2030"
-		return
+		;msgbox("Not yet implemented. Supplying dummy code.","WIP")
+		;this.g.a.live.uuidText.text:="57ae422e-b2bb21f0-bd1c-0060569d2030"
+		uuid:=urlDownloadToVar(this.endpoint,,map("api-key",this.magic))
+		return uuid
 	}
 
 	; altConfigs
@@ -603,10 +696,12 @@
 					i.text.text := "DECIDER - "
 				}
 			} else {
-				cPick := mod(this.deferV?a_index+1:a_index,2)?this.highSeed:this.lowSeed
+				;cPick := mod(this.deferV?a_index+1:a_index,2)?this.highSeed:this.lowSeed
+				cPick := mod(a_index,2)?this.highSeed:this.lowSeed
 				i.text.text := cPick " picks"
 			}
 		}
+		;msgbox("BWS Swapped")
 	}
 
 	; accessory

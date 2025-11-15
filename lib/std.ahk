@@ -62,20 +62,11 @@ screenshot(filePath) {
 	return filePath "\" cnt
 }
 
-b64eText(text,encoding:="UTF-8") {
-	bIn:=buffer(iL:=strPut(text,encoding))
-	strPut(text,bIn,encoding)
-	dllCall("Crypt32.dll\CryptBinaryToString","Ptr",bIn,"UInt",iL-1,"UInt",0x40000001,"Ptr",0,"UInt*",&oL:=0)
+b64e(bin,binSize) {
+	dllCall("Crypt32.dll\CryptBinaryToString","Ptr",bin,"UInt",binSize,"UInt",0x1,"Ptr",0,"UInt*",&oL:=0)
 	bOut:=buffer(oL << 1,0)
-	dllCall("Crypt32.dll\CryptBinaryToString","Ptr",bIn,"UInt",iL-1,"UInt",0x40000001,"Ptr",bOut,"UInt*",&oL)
-	return strGet(bOut)
-}
-
-b64dText(text,encoding:="UTF-8") {
-	dllCall("Crypt32.dll\CryptStringToBinary","Ptr",strPtr(text),"Uint",0,"UInt",0x1,"Ptr",0,"UInt*",&iL:=0,"Ptr",0,"Ptr",0)
-	b:=buffer(iL,0)
-	dllCall("Crypt32.dll\CryptStringToBinary","Ptr",strPtr(text),"UInt",0,"UInt",0x1,"Ptr",b,"UInt*",b.size,"Ptr",0,"Ptr",0)
-	return strGet(b,encoding)
+	dllCall("Crypt32.dll\CryptBinaryToString","Ptr",bin,"UInt",binSize,"UInt",0x1,"Ptr",bOut,"UInt*",&oL)
+	return strReplace(strGet(bOut),"`r`n")
 }
 
 reverseArray(iArray) {
@@ -84,4 +75,42 @@ reverseArray(iArray) {
 		rArray.insertAt(1,a)
 	}
 	return rArray
+}
+
+urlDownloadToVar(url,raw:=0,headers:="",userAgent:=""){
+	if (!regExMatch(url,"i)https?://"))
+		url:="https://" url
+	try {
+		hObject:=comObject("WinHttp.WinHttpRequest.5.1")
+		hObject.open("GET",url)
+		if (userAgent)
+			hObject.setRequestHeader("User-Agent",userAgent)
+		if (isObject(headers)) {
+			for i,a in headers {
+				hObject.setRequestHeader(i,a)
+			}
+		}
+		hObject.send()
+		return raw?hObject.responseBody:hObject.responseText
+	} catch any as e
+		return e.message
+}
+
+httpPost(url,body,headers:="",userAgent:="") {
+	if (!regExMatch(url,"i)https?://"))
+		url:="https://" url
+	try {
+		hObject:=comObject("WinHttp.WinHttpRequest.5.1")
+		hObject.open("POST",url)
+		if (userAgent)
+			hObject.setRequestHeader("User-Agent",userAgent)
+		if (isObject(headers)) {
+			for i,a in headers {
+				hObject.setRequestHeader(i,a)
+			}
+		}
+		hObject.send(body)
+		return hObject.responseText
+	} catch any as e
+		return e.message
 }

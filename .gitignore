@@ -1,6 +1,7 @@
-CH Ref Tool.exe
-data/log.txt
-data/jlog.txt
+*.exe
+data/*log*
 matches/
 tester.ahk
 _
+*.7z
+*.log

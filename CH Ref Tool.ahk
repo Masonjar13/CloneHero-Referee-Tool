@@ -11,13 +11,13 @@
 #noTrayIcon
 */
 persistent
+setWorkingDir(a_scriptDir)
 
+#include "_"
 #include <Gdip_All>
 #include <std>
 #include <CHRefTool>
 #include <JSON>
-
-setWorkingDir(a_scriptDir)
 
 ; file/folder setup
 files:={data:a_scriptDir "\data",
@@ -32,7 +32,7 @@ songCnt:=inputBox("Best of how many songs?","Match Song Count")
 if (!songCnt.value || !isDigit(songCnt.value) || songCnt.result!="OK")
 	exitApp()
 
-CHTool:=CHRefTool(files,songCnt.value)
+CHTool:=CHRefTool(files,songCnt.value,_1),_1:=unset
 onExit(objBindMethod(CHTool,"quit"))
 CHTool.g.show()
 return
